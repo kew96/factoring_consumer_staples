@@ -1,7 +1,8 @@
 Factoring Consumer Staples
 ==============================
 
-This project aims to apply the Fama-French Three Factor Model to Consumer Staples ETFs while exploring alternative factors and rankings metrics.
+This project aims to apply the Fama-French Three-Factor Model to Consumer Staples ETFs while exploring alternative 
+factors and rankings metrics.
 
 Project Organization
 ------------
@@ -44,9 +45,7 @@ Project Organization
     │   │   └── train_model.py
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │       └── visualize.py
+    └──       └── visualize.py
 
 
 --------
-
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
