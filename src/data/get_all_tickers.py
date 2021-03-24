@@ -18,4 +18,4 @@ with open(DATA_PATH.joinpath('raw/consumer_staples.txt'), 'r') as file:
 tickers_set.update(consumer_tickers[:-1])
 
 with open(DATA_PATH.joinpath('interim/all_tickers.txt'), 'w') as file:
-    file.write(' '.join(tickers_set))
+    file.write('\n'.join(tickers_set))
