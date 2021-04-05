@@ -5,3 +5,4 @@
 
 pandas~=1.2.2
 yfinance~=0.1.54
+numpy~=1.19.2
