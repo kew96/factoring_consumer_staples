@@ -100,4 +100,8 @@ for tick in new_bad_data.keys():
 
 market_values = market_values.drop(bad_inds)
 
-market_values.to_csv(DATA_PATH.joinpath('processed', 'market_values.csv'), index=False)
+with open(DATA_PATH.joinpath('interim', 'dropped_tickers.txt'), 'a') as file:
+    for ticker in new_bad_data.keys():
+        file.write(f'{ticker}\n')
+
+market_values.to_csv(DATA_PATH.joinpath('interim', 'market_values.csv'), index=False)
