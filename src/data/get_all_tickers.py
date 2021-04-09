@@ -4,18 +4,16 @@ import pandas as pd
 
 DATA_PATH = Path().cwd().parent.parent.joinpath('data')
 
-tickers_set = set()
+ticker_set = set()
 
-for csv in DATA_PATH.joinpath('interim').glob('*.csv'):
-    df = pd.read_csv(csv)
+for csv in DATA_PATH.joinpath('interim').glob('*_holdings_values.txt'):
+    df = pd.read_table(csv)
     for v in list(df.columns):
-        if not v.isdigit():
-            tickers_set.add(v)
+        ticker_set.add(v)
 
-with open(DATA_PATH.joinpath('raw/consumer_staples.txt'), 'r') as file:
-    consumer_tickers = file.read().split('\n')
-
-tickers_set.update(consumer_tickers[:-1])
+sp_consumer_staples = pd.read_table(DATA_PATH.joinpath('raw', 'consumer_staples_cusips.txt'))
+for ticker in sp_consumer_staples.TICKER:
+    ticker_set.add(ticker)
 
 with open(DATA_PATH.joinpath('interim/all_tickers.txt'), 'w') as file:
-    file.write('\n'.join(tickers_set))
+    file.write('\n'.join(ticker_set))
