@@ -10,10 +10,11 @@ warnings.filterwarnings("ignore")
 DATA_PATH = Path().cwd().parent.parent.joinpath('data')
 
 
-market_values = pd.read_csv(DATA_PATH.joinpath('raw', 'market_values.csv'))
+market_values = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
+                              dtype={'cusip': str, 'tpci': str}, parse_dates=['datadate'])
 
-# Scaling market values from millions of dollars to dollars
-market_values.mkvaltq = market_values.mkvaltq * 1_000_000
+# Calculating daily market value
+market_values['mkvaltq'] = market_values.prccd * market_values.cshoc
 
 # Finding all tickers with missing values
 def get_bad_data(values):
@@ -30,39 +31,6 @@ def get_bad_data(values):
     return Counter(tickers)
 
 bad_data = get_bad_data(market_values)
-
-# Two consecutive missing market values imputation
-def impute_two_periods(data):
-    # print(data)
-    if np.sum(np.isnan(data.iloc[:2])) == 2: # If first two periods missing
-        diff = data.iloc[3] - data.iloc[2] # assume trend holds
-        return data.iloc[2] - diff, data.iloc[2] - diff * 2
-    elif np.sum(np.isnan(data.iloc[2:])) == 2: # If last two periods missing
-        diff = data.iloc[1] - data.iloc[0] # assume trend holds
-        return data.iloc[1] + diff, data.iloc[1] + diff * 2
-    elif np.sum(np.isnan(data.iloc[1:3])): # If middle two periods missing
-        diff = data.iloc[3] - data.iloc[0] # assume constant growth/decay
-        step = diff / 3
-        return data.iloc[0] + step, data.iloc[0]  + step * 2
-    # Individual case handled later
-
-
-for elem in bad_data.items():
-    subset = market_values[market_values.tic == elem[0]]
-    for ind, value1, value2 in zip(subset.index, subset.mkvaltq[:-1], subset.mkvaltq[1:]):
-        if np.sum(np.isnan([value1, value2])) == 2:
-            if ind == subset.index[0]:
-                data = subset.loc[ind:ind+4, 'mkvaltq']
-            elif ind == subset.index[-2]:
-                data = subset.loc[ind-2:, 'mkvaltq']
-            else:
-                data = subset.loc[ind-1:ind+2, 'mkvaltq']
-            if np.sum(np.isnan(data)) > 2:
-                continue
-            else:
-                new_vals = impute_two_periods(data)
-            subset.loc[ind:ind+1, 'mkvaltq'] = new_vals
-    market_values[market_values.tic == elem[0]] = subset
 
 # One period missing market values imputation
 def impute_one_period(data):
@@ -91,17 +59,8 @@ for elem in bad_data.items():
                 subset.loc[ind, 'mkvaltq'] = new_value
     market_values[market_values.tic == elem[0]] = subset
 
+monthly_vals = market_values[market_values.datadate.dt.is_month_end]
 
-new_bad_data = get_bad_data(market_values)
-bad_inds = list()
+monthly_vals.to_csv(DATA_PATH.joinpath('interim', 'market_values.txt'), index=False, sep='\t')
 
-for tick in new_bad_data.keys():
-    bad_inds.extend(list(market_values[market_values.tic == tick].index))
-
-market_values = market_values.drop(bad_inds)
-
-with open(DATA_PATH.joinpath('interim', 'dropped_tickers.txt'), 'a') as file:
-    for ticker in new_bad_data.keys():
-        file.write(f'{ticker}\n')
-
-market_values.to_csv(DATA_PATH.joinpath('interim', 'market_values.csv'), index=False)
+print('Cleaned market values!')
