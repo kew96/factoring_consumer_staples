@@ -60,7 +60,8 @@ for elem in bad_data.items():
     market_values[market_values.tic == elem[0]] = subset
 
 monthly_vals = market_values[market_values.datadate.dt.is_month_end]
+quarterly_vals = monthly_vals[monthly_vals.datadate.dt.month.isin([3, 6, 9, 12])]
 
-monthly_vals.to_csv(DATA_PATH.joinpath('interim', 'market_values.txt'), index=False, sep='\t')
+quarterly_vals.to_csv(DATA_PATH.joinpath('interim', 'market_values.txt'), index=False, sep='\t')
 
 print('Cleaned market values!')
