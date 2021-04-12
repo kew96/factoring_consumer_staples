@@ -95,12 +95,12 @@ for elem in bad_data_1.items():
             elif ind == subset.index[-2]:
                 data = subset.loc[ind-2:, 'ptb']
             else:
-                data = subset.loc[ind-1:ind+2, 'ptb']
+                data = subset.loc[ind-1:ind+3, 'ptb']
             if np.sum(np.isnan(data)) > 2:
                 continue
             else:
                 new_vals = impute_two_periods(data)
-            subset.loc[ind:ind+1, 'ptb'] = new_vals
+            subset.loc[ind:ind+2, 'ptb'] = new_vals
     book_ratios[book_ratios.tic == elem[0]] = subset
 
 def impute_one_period(data):
