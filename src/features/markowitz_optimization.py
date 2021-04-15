@@ -53,8 +53,8 @@ class Markowitz:
             all_returns[ind] = result['period_return']
             all_weights[ind] = result['weights']
 
-        # Sharpe ratio defined as return divided by risk
-        sharpe_ratio = all_returns / all_variances
+        # Sharpe ratio defined as return divided by volatility
+        sharpe_ratio = all_returns / np.sqrt(all_variances)
 
         # Find the index of the max sharpe ratio portfolio
         max_sharpe_ind = np.argmax(sharpe_ratio)
