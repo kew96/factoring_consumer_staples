@@ -15,9 +15,28 @@ DATA_PATH = Path.cwd().parent.parent.joinpath('data')
 
 consumer_staples = pd.read_csv(DATA_PATH.joinpath('raw', 'sp500_consumer_staples.csv'))
 t_bill = pd.read_csv(DATA_PATH.joinpath('raw', '3_month_t_bill.csv'))
-prices = pd.read_table(DATA_PATH.joinpath('raw', 'prices_assets_liabilities_quarterly.txt'),
-                       parse_dates=['datadate'], usecols=['datadate', 'tic', 'conm', 'prccq'],
-                       index_col=['datadate', 'tic'])
+prices = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
+                       parse_dates=['datadate'], usecols=['tic', 'datadate', 'conm', 'prccd', 'cshoc'],
+                       index_col=['tic', 'datadate'])
+
+num_tickers = len(prices.index.get_level_values('tic').unique())
+
+final_shares_outstanding_dict = {'tic': [0] * num_tickers, 'final': [0] * num_tickers}
+
+for ind, ticker in enumerate(prices.index.get_level_values('tic').unique()):
+    subset = prices.loc[ticker]
+    last_day = subset.index.max()
+    final_shares_outstanding_dict['tic'][ind] = ticker
+    final_shares_outstanding_dict['final'][ind] = subset.loc[last_day, 'cshoc']
+
+final_shares_outstanding = pd.DataFrame(final_shares_outstanding_dict)
+
+prices = prices.join(final_shares_outstanding.set_index('tic'))
+prices['scale'] = prices.cshoc / prices.final
+prices['prccd'] = prices.prccd * prices.scale
+
+prices = prices[prices.index.get_level_values('datadate').is_month_end][['conm', 'prccd']]
+prices = prices.rename({'prccd': 'prccm'}, axis=1)
 
 t_bill.Date = pd.to_datetime(t_bill.Date, format='%b %y')
 consumer_staples.Date = pd.to_datetime(consumer_staples.Date, format='%b %y')
@@ -38,8 +57,8 @@ def get_bad_data(prices):
     bad_data = list()
     for ticker in prices.index.get_level_values(1).unique():
         subset = prices.loc[pd.IndexSlice[:, ticker], :]
-        current = 'na' if np.isnan(subset.prccq.iloc[0]) else 'val'
-        for v in subset.prccq[1:]:
+        current = 'na' if np.isnan(subset.prccm.iloc[0]) else 'val'
+        for v in subset.prccm[1:]:
             if not np.isnan(v):
                 current = 'val'
             elif current == 'val' and np.isnan(v):
@@ -64,19 +83,19 @@ def impute_two_periods(data):
 
 for elem in bad_data.items():
     subset = prices.loc[pd.IndexSlice[:, elem[0][0]], :]
-    for ind, (value1, value2) in enumerate(zip(subset.prccq[:-1], subset.prccq[1:])):
+    for ind, (value1, value2) in enumerate(zip(subset.prccm[:-1], subset.prccm[1:])):
         if np.sum(np.isnan([value1, value2])) == 2:
             if ind == 0:
-                data = subset.iloc[ind:ind+4].prccq
+                data = subset.iloc[ind:ind+4].prccm
             elif ind == len(subset)-3:
-                data = subset.iloc[ind-4:].prccq
+                data = subset.iloc[ind-4:].prccm
             else:
-                data = subset.iloc[ind-1:ind+3].prccq
+                data = subset.iloc[ind-1:ind+3].prccm
             if np.sum(np.isnan(data)) > 2:
                 continue
             else:
                 new_vals = impute_two_periods(data)
-            subset.iloc[ind:ind+2].prccq = new_vals
+            subset.iloc[ind:ind+2].prccm = new_vals
     prices.loc[pd.IndexSlice[:, elem[0]], :] = subset
 
 def impute_one_period(data):
@@ -92,14 +111,14 @@ def impute_one_period(data):
 
 for elem in bad_data.items():
     subset = prices.loc[pd.IndexSlice[:, elem[0][0]], :]
-    for ind, value in enumerate(subset.prccq):
+    for ind, value in enumerate(subset.prccm):
         if np.isnan(value):
             if ind == 0:
-                three_set = subset.iloc[ind:ind+3].prccq
+                three_set = subset.iloc[ind:ind+3].prccm
             elif ind == len(subset)-1:
-                three_set = subset.iloc[ind-2:ind].prccq
+                three_set = subset.iloc[ind-2:ind].prccm
             else:
-                three_set = subset.iloc[ind-1:ind+2].prccq
+                three_set = subset.iloc[ind-1:ind+2].prccm
             if np.sum(np.isnan(three_set)) == 1:
                 new_value = impute_one_period(three_set)
                 subset.iloc[ind] = subset.iloc[ind].fillna(new_value)
@@ -107,10 +126,13 @@ for elem in bad_data.items():
 
 prices['chng'] = np.nan
 
-for ticker in prices.index.get_level_values(1).unique():
-    subset = prices.loc[pd.IndexSlice[:, ticker], :]
-    subset.chng = subset.prccq.pct_change()
-    prices.loc[pd.IndexSlice[:, ticker], 'chng'] = subset.chng
+for ticker in prices.index.get_level_values('tic').unique():
+    subset = prices.loc[pd.IndexSlice[ticker, :], :]
+    subset.chng = subset.prccm.pct_change()
+    if ticker in ['ABF' 'ALCO']:
+        print(ticker)
+        print(subset)
+    prices.loc[pd.IndexSlice[ticker, :], 'chng'] = subset.loc[:, 'chng']
 
 consumer_staples['chng'] = consumer_staples.Price.pct_change()
 
@@ -128,6 +150,12 @@ t_bill = t_bill.reset_index()
 t_bill.Date = pd.to_datetime(t_bill.Date)
 
 prices_w_cs_w_tb = prices_w_cs.merge(t_bill, how='left', left_on='datadate', right_on='Date', suffixes=('', '_tb'))
+prices_w_cs_w_tb = prices_w_cs_w_tb.dropna(subset=['chng'])
+prices_w_cs_w_tb = prices_w_cs_w_tb.drop(
+    ['index', 'Date', 'Price', 'Open', 'High', 'Low', 'Vol.', 'Change %', 'Date_tb', 'Open_tb', 'High_tb', 'Low_tb',
+     'Change %_tb'],
+    axis=1
+)
 
 prices_w_cs_w_tb.to_csv(DATA_PATH.joinpath('interim', 'prices_returns.txt'), index=False, sep='\t')
 
