@@ -10,7 +10,7 @@ DATA_PATH = Path.cwd().parent.parent.joinpath('data')
 
 prices_returns = pd.read_table(DATA_PATH.joinpath('interim', 'prices_returns.txt'),
                                parse_dates=['datadate'],
-                               usecols=['datadate', 'tic', 'conm', 'prccq', 'chng', 'chng_cs', 'Price_tb', 'excess'])
+                               usecols=['datadate', 'tic', 'conm', 'prccm', 'chng', 'chng_cs', 'Price_tb', 'excess'])
 
 book_ratios = pd.read_table(DATA_PATH.joinpath('interim', 'book_ratios.txt'),
                             parse_dates=['datadate'],
