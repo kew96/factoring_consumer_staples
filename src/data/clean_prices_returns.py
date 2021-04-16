@@ -136,7 +136,7 @@ for ticker in prices.index.get_level_values('tic').unique():
 
 consumer_staples['chng'] = consumer_staples.Price.pct_change()
 
-consumer_staples['excess'] = consumer_staples.chng - t_bill.Price/100
+consumer_staples['mkt_excess'] = consumer_staples.chng - t_bill.Price/100
 
 prices = prices.reset_index()
 
@@ -150,6 +150,7 @@ t_bill = t_bill.reset_index()
 t_bill.Date = pd.to_datetime(t_bill.Date)
 
 prices_w_cs_w_tb = prices_w_cs.merge(t_bill, how='left', left_on='datadate', right_on='Date', suffixes=('', '_tb'))
+prices_w_cs_w_tb.Price_tb = prices_w_cs_w_tb.Price_tb / 100
 prices_w_cs_w_tb = prices_w_cs_w_tb.dropna(subset=['chng'])
 prices_w_cs_w_tb = prices_w_cs_w_tb.drop(
     ['index', 'Date', 'Price', 'Open', 'High', 'Low', 'Vol.', 'Change %', 'Date_tb', 'Open_tb', 'High_tb', 'Low_tb',

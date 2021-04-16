@@ -10,15 +10,15 @@ DATA_PATH = Path.cwd().parent.parent.joinpath('data')
 
 prices_returns = pd.read_table(DATA_PATH.joinpath('interim', 'prices_returns.txt'),
                                parse_dates=['datadate'],
-                               usecols=['datadate', 'tic', 'conm', 'prccm', 'chng', 'chng_cs', 'Price_tb', 'excess'])
+                               usecols=['datadate', 'tic', 'conm', 'chng', 'Price_tb', 'mkt_excess'])
 
 book_ratios = pd.read_table(DATA_PATH.joinpath('interim', 'book_ratios.txt'),
                             parse_dates=['datadate'],
-                            usecols=['datadate', 'tic', 'book_value', 'bv_per_share', 'ptb'])
+                            usecols=['datadate', 'tic', 'ptb'])
 
 market_values = pd.read_table(DATA_PATH.joinpath('interim', 'market_values.txt'),
                               parse_dates=['datadate'],
-                              usecols=['datadate', 'tic', 'cshoc', 'prccd', 'prcod', 'mkvaltq'])
+                              usecols=['datadate', 'tic', 'mkvaltq'])
 
 pr_br = prices_returns.merge(book_ratios, how='inner', on=['datadate', 'tic'])
 
