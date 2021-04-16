@@ -24,6 +24,13 @@ pr_br = prices_returns.merge(book_ratios, how='inner', on=['datadate', 'tic'])
 
 pr_br_mv = pr_br.merge(market_values, how='inner', on=['datadate', 'tic'])
 
+little_data = list()
+for ticker in pr_br_mv.tic.unique():
+    if len(pr_br_mv[pr_br_mv.tic==ticker]) < 2:
+        little_data.append(ticker)
+
+pr_br_mv = pr_br_mv[~pr_br_mv.tic.isin(little_data)]
+
 pr_br_mv.to_csv(DATA_PATH.joinpath('processed', 'three_factor_model.txt'), index=False, sep='\t')
 
 print('Merged data for three-factor model!')

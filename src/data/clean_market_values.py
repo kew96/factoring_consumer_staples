@@ -62,6 +62,13 @@ for elem in bad_data.items():
 monthly_vals = market_values[market_values.datadate.dt.is_month_end]
 quarterly_vals = monthly_vals[monthly_vals.datadate.dt.month.isin([3, 6, 9, 12])]
 
+little_data = list()
+for ticker in quarterly_vals.tic.unique():
+    if len(quarterly_vals[quarterly_vals.tic==ticker]) < 2:
+        little_data.append(ticker)
+
+quarterly_vals = quarterly_vals[~quarterly_vals.tic.isin(little_data)]
+
 quarterly_vals.to_csv(DATA_PATH.joinpath('interim', 'market_values.txt'), index=False, sep='\t')
 
 print('Cleaned market values!')

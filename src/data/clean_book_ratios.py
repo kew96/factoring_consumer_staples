@@ -23,7 +23,7 @@ book_ratios = book_ratios.merge(shares, on=['datadate', 'tic'], how='left')
 
 def fix_missing_shares(df):
     for ticker in tqdm(df.tic.unique(), desc='tickers'):
-        subset = shares[shares.tic==ticker].dropna()
+        subset = shares[shares.tic==ticker].dropna(subset=['cshoc'])
         for row in tqdm(df[df.tic==ticker].itertuples(), desc=ticker, leave=False):
             if np.isnan(row.cshoc):
                 val = np.nan
@@ -128,6 +128,13 @@ for elem in bad_data_1.items():
                 new_value = impute_one_period(three_set)
                 subset.loc[ind, 'ptb'] = new_value
     book_ratios[book_ratios.tic == elem[0]] = subset
+
+little_data = list()
+for ticker in book_ratios.tic.unique():
+    if len(book_ratios[book_ratios.tic==ticker]) < 2:
+        little_data.append(ticker)
+
+book_ratios = book_ratios[~book_ratios.tic.isin(little_data)]
 
 book_ratios.to_csv(DATA_PATH.joinpath('interim', 'book_ratios.txt'), index=False, sep='\t')
 

@@ -158,6 +158,13 @@ prices_w_cs_w_tb = prices_w_cs_w_tb.drop(
     axis=1
 )
 
+little_data = list()
+for ticker in prices_w_cs_w_tb.tic.unique():
+    if len(prices_w_cs_w_tb[prices_w_cs_w_tb.tic==ticker]) < 2:
+        little_data.append(ticker)
+
+prices_w_cs_w_tb = prices_w_cs_w_tb[~prices_w_cs_w_tb.tic.isin(little_data)]
+
 prices_w_cs_w_tb.to_csv(DATA_PATH.joinpath('interim', 'prices_returns.txt'), index=False, sep='\t')
 
 print('Cleaned prices and returns!')
