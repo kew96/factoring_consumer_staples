@@ -135,6 +135,3 @@ class ThreeFactorLoadings:
 
         V = np.dot(np.dot(self.factor_loading.values, F), self.factor_loading.values.T)
         return pd.DataFrame(V, columns=self.factor_loading.index, index=self.factor_loading.index)
-
-if __name__ == '__main__':
-    tfl = ThreeFactorLoadings()
