@@ -26,7 +26,7 @@ pr_br_mv = pr_br.merge(market_values, how='inner', on=['datadate', 'tic'])
 
 little_data = list()
 for ticker in pr_br_mv.tic.unique():
-    if len(pr_br_mv[pr_br_mv.tic==ticker]) < 2:
+    if len(pr_br_mv[pr_br_mv.tic==ticker]) < 4:
         little_data.append(ticker)
 
 pr_br_mv = pr_br_mv[~pr_br_mv.tic.isin(little_data)]
