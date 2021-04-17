@@ -5,7 +5,7 @@ import pandas as pd
 
 from statsmodels.api import WLS
 
-np.seterr('raise')
+np.warnings.filterwarnings('error', category=np.VisibleDeprecationWarning)
 
 
 class ThreeFactorLoadings:
@@ -18,7 +18,8 @@ class ThreeFactorLoadings:
         self._generate_smb()
         self._generate_hml()
         self._generate_distinct_factors()
-        self.alpha, self.factor_loading, self.p_values = self._generate_distinct_factors()
+        self.alpha, self.delta, self.factor_loading, self.p_values = self._generate_distinct_factors()
+        self.Sigma = self._generate_factor_covariance()
 
     def _generate_smb(self):
         smb = list()
@@ -69,6 +70,7 @@ class ThreeFactorLoadings:
         p_smb = list()
         p_hml = list()
         r2 = list()
+        delta_diag = list()
 
         for ticker in self.__data.tic.unique():
             temp_df = self.__data[self.__data.tic == ticker]
@@ -90,7 +92,14 @@ class ThreeFactorLoadings:
 
             alpha = 0
             for y_val, w, pred in zip(y, weights, predictions):
-                alpha += (y - pred) * w
+                alpha += y_val - pred
+
+            errors = list()
+            for pred, y_val in zip(predictions, y):
+                error = y_val - alpha - pred
+                errors.append(error)
+
+            squared_error = sum([w * error ** 2 for w, error in zip(weights, errors)])
 
             alphas.append(alpha)
             beta_mkt_exc.append(model.params[0])
@@ -100,130 +109,32 @@ class ThreeFactorLoadings:
             p_smb.append(model.pvalues[1])
             p_hml.append(model.pvalues[2])
             r2.append(model.rsquared)
+            delta_diag.append(squared_error)
 
-        return (pd.Series(alphas, index=self.__data.tic.unique()),
-                pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml}),
-                pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml}))
+        return (
+            pd.Series(alphas, index=self.__data.tic.unique()),
+            pd.DataFrame(np.diagflat(delta_diag), columns=self.__data.tic.unique(), index=self.__data.tic.unique()),
+            pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml}, index=self.__data.tic.unique()),
+            pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml}, index=self.__data.tic.unique())
+        )
 
+    def _generate_factor_covariance(self):
+        f = self.__data[self.__data.tic==self.__data.tic.mode()[0]][['datadate', 'mkt_excess', 'smb', 'hml']]
+        denom = sum(range(len(f)))
+        weights = [val / denom for val in range(1, len(f) + 1)]
+        F = pd.DataFrame(0, columns=['mkt_excess', 'smb', 'hml'], index=['mkt_excess', 'smb', 'hml'])
+        for w1, row1 in zip(weights, f.values):
+            weighted_factors = np.zeros(3)
+            for w2, row2 in zip(weights, f.values):
+                weighted_factors = weighted_factors + np.multiply(w2, row2[1:])
 
-# DATA_PATH = Path.cwd().parent.parent.joinpath('data')
-# df = pd.read_table(DATA_PATH.joinpath('processed', 'three_factor_model.txt'))
+            diff = row1[1:] - weighted_factors
 
-# dat = {'datadate': [], 'SMB value': []}
-# SMB = pd.DataFrame(data=dat)
-# j = 0
-# for i in np.unique(df["datadate"]):
-# temp = df[df.datadate == i][["chng", "mkvaltq"]]
-#
-# ten = np.nanpercentile(temp["mkvaltq"], 10)
-# ninety = np.nanpercentile(temp["mkvaltq"], 90)
-# small = temp[temp["mkvaltq"] < ten]
-# big = temp[temp["mkvaltq"] > ninety]
-# small_rets = np.nanmean(small["chng"])
-# # big_rets = np.nanmean(big["chng"])
-# factor = small_rets - big_rets
-# SMB.loc[j] = [i, factor]
-# j += 1
+            cov = np.dot(diff.reshape((3,1)), diff.reshape((1,3)))
+            F += w1 * cov
 
-# dat = {'datadate': [], 'HML value': []}
-# HML = pd.DataFrame(data=dat)
-# j = 0
-# for i in np.unique(df["datadate"]):
-#     temp = df[df.datadate == i][["tic", "chng", "ptb"]]
-#
-#     ten = np.nanpercentile(temp["ptb"], 10)
-#     ninety = np.nanpercentile(temp["ptb"], 90)
-#     value = temp[temp["ptb"] < ten]
-#     growth = temp[temp["ptb"] > ninety]
-#     val_rets = np.nanmean(value["chng"])
-#     growth_rets = np.nanmean(growth["chng"])
-#     factor = val_rets - growth_rets
-#     HML.loc[j] = [i, factor]
-#     j += 1
-
-# df = df.merge(SMB, how="left", on="datadate")
-# df = df.merge(HML, how="left", on="datadate")
-
-##need to apply model to all stocks to get B
-# factors = pd.DataFrame(columns=['Tic', 'Alpha', 'Beta_mkt_Exc', 'Beta_SMB', 'Beta_HML', 'p_MX', 'p_smb', 'p_hml', 'r2'])
-# delta = np.zeros(shape=(len(np.unique(df["tic"])), len(np.unique(df["tic"]))))
-# q = -1
-
-
-# def int_sum(x):
-#     sum1 = 0
-#     for i in range(1, x + 1):
-#         sum1 += i
-#     return sum1
-#
-# for tic in np.unique(df["tic"]):
-#     try:
-#         q += 1
-#         temp_df = df[df["tic"] == tic]
-#         temp_df = temp_df.reset_index(drop=True)
-#         temp_df = temp_df.dropna()
-#         Y = temp_df["chng"] - (temp_df["Price_tb"])
-#         X = temp_df[["mkt_excess", "SMB value", "HML value"]]
-#         w = np.ones(temp_df.shape[0])
-#         denom = int_sum(len(w))
-#         for i in range(len(w)):
-#             w[i] += i
-#         w = w / denom
-#         model = sm.WLS(Y, X, weights=w).fit()
-#         alpha = 0
-#         for i in range(len(weights)):
-#             no = 0
-#             for j in range(len(model.params)):
-#                 no += X.iloc[i][j] * model.params[j]
-#             yes = (Y.iloc[i] - no) * weights[i]
-#             alf += yes
-#
-# e_i = []
-# for i in range(len(weights)):
-#     kyo = Y.iloc[i] - alf
-#     predicted = 0
-#     for j in range(len(model.params)):
-#         predicted += X.iloc[i][j] * model.params[j]
-#     kyo -= predicted
-#     e_i.append(kyo)
-#
-# eii = 0
-# for i in range(len(weights)):
-#     eii += weights[i] * (e_i[i] ** 2)
-# delta[q][q] = eii
-#
-#     factors.loc[q] = [tics, alf, model.params[0], model.params[1], model.params[2], model.pvalues[0],
-#                       model.pvalues[1],
-#                       model.pvalues[2], model.rsquared]
-#
-# except Exception as e:
-#     print(e)
-#     raise Exception
-
-# B = factors[["Beta_mkt_Exc", "Beta_SMB", "Beta_HML"]]
-# f = df[df["tic"] == (df.tic).mode()[0]].iloc[3:][["datadate", "mkt_excess", "SMB value", "HML value"]]
-# w = np.zeros(len(f))
-# denom = int_sum(len(w))
-# for j in range(len(w)):
-#     w[j] += i
-# w = w / denom
-# F = np.zeros(shape=(3, 3))
-# for t in range(len(f)):
-#
-#     temp = np.zeros(3)
-#     for s in range(len(f)):
-#         temp = temp + w[s] * f.iloc[s][["mkt_excess", "SMB value", "HML value"]]
-#
-#     term1 = f.iloc[t][["mkt_excess", "SMB value", "HML value"]] - temp
-#
-#     mat1 = np.dot(np.reshape(np.array(term1), (3, 1)), np.transpose(np.reshape(np.array(term1), (3, 1))))
-#     mat1 = mat1 * w[t]
-#     F = F + mat1
-#
-# V = np.dot(np.dot(np.array(B), F), np.transpose(np.array(B)))
-#
-# print(V)
-
+        V = np.dot(np.dot(self.factor_loading.values, F), self.factor_loading.values.T)
+        return pd.DataFrame(V, columns=self.factor_loading.index, index=self.factor_loading.index)
 
 if __name__ == '__main__':
     tfl = ThreeFactorLoadings()
