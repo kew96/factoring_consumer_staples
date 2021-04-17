@@ -62,11 +62,11 @@ class ThreeFactorLoadings:
 
     def _generate_distinct_factors(self):
         alphas = list()
-        beta_mkt_exc = list();
-        beta_smb = list();
+        beta_mkt_exc = list()
+        beta_smb = list()
         beta_hml = list()
-        p_mx = list();
-        p_smb = list();
+        p_mx = list()
+        p_smb = list()
         p_hml = list()
         r2 = list()
 
