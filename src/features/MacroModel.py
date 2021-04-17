@@ -5,8 +5,6 @@ import pandas as pd
 
 from statsmodels.api import WLS
 
-np.warnings.filterwarnings('error', category=np.VisibleDeprecationWarning)
-
 
 class ThreeFactorLoadings:
     __DATA_PATH = Path.cwd().parent.parent.joinpath('data')
@@ -20,6 +18,10 @@ class ThreeFactorLoadings:
         self._generate_distinct_factors()
         self.alpha, self.delta, self.factor_loading, self.p_values = self._generate_distinct_factors()
         self.Sigma = self._generate_factor_covariance()
+
+    @property
+    def data(self):
+        return self.__data
 
     def _generate_smb(self):
         smb = list()
