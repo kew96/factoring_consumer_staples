@@ -7,6 +7,7 @@ from statsmodels.api import WLS
 
 np.seterr('raise')
 
+
 class ThreeFactorLoadings:
     __DATA_PATH = Path.cwd().parent.parent.joinpath('data')
 
@@ -22,7 +23,7 @@ class ThreeFactorLoadings:
     def _generate_smb(self):
         smb = list()
         for date in self.__data.datadate.unique():
-            temp = self.__data[self.__data.datadate==date][['chng', 'mkvaltq']]
+            temp = self.__data[self.__data.datadate == date][['chng', 'mkvaltq']]
 
             ten = self.__data.mkvaltq.quantile(0.1)
             ninety = self.__data.mkvaltq.quantile(0.9)
@@ -61,19 +62,22 @@ class ThreeFactorLoadings:
 
     def _generate_distinct_factors(self):
         alphas = list()
-        beta_mkt_exc = list(); beta_smb = list(); beta_hml = list()
-        p_mx = list(); p_smb = list(); p_hml = list()
+        beta_mkt_exc = list();
+        beta_smb = list();
+        beta_hml = list()
+        p_mx = list();
+        p_smb = list();
+        p_hml = list()
         r2 = list()
-        # delta_diag = list()
 
         for ticker in self.__data.tic.unique():
-            temp_df = self.__data[self.__data.tic==ticker]
+            temp_df = self.__data[self.__data.tic == ticker]
 
             y = temp_df.chng.values - temp_df.Price_tb.values
             X = temp_df[['mkt_excess', 'smb', 'hml']].values
 
             denom = sum(range(len(temp_df)))
-            weights = [val/denom for val in range(1, len(temp_df)+1)]
+            weights = [val / denom for val in range(1, len(temp_df) + 1)]
 
             model = WLS(y, X, weights=weights).fit()
 
@@ -96,11 +100,10 @@ class ThreeFactorLoadings:
             p_smb.append(model.pvalues[1])
             p_hml.append(model.pvalues[2])
             r2.append(model.rsquared)
+
         return (pd.Series(alphas, index=self.__data.tic.unique()),
                 pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml}),
                 pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml}))
-
-
 
 
 # DATA_PATH = Path.cwd().parent.parent.joinpath('data')
@@ -110,17 +113,17 @@ class ThreeFactorLoadings:
 # SMB = pd.DataFrame(data=dat)
 # j = 0
 # for i in np.unique(df["datadate"]):
-    # temp = df[df.datadate == i][["chng", "mkvaltq"]]
-    #
-    # ten = np.nanpercentile(temp["mkvaltq"], 10)
-    # ninety = np.nanpercentile(temp["mkvaltq"], 90)
-    # small = temp[temp["mkvaltq"] < ten]
-    # big = temp[temp["mkvaltq"] > ninety]
-    # small_rets = np.nanmean(small["chng"])
-    # # big_rets = np.nanmean(big["chng"])
-    # factor = small_rets - big_rets
-    # SMB.loc[j] = [i, factor]
-    # j += 1
+# temp = df[df.datadate == i][["chng", "mkvaltq"]]
+#
+# ten = np.nanpercentile(temp["mkvaltq"], 10)
+# ninety = np.nanpercentile(temp["mkvaltq"], 90)
+# small = temp[temp["mkvaltq"] < ten]
+# big = temp[temp["mkvaltq"] > ninety]
+# small_rets = np.nanmean(small["chng"])
+# # big_rets = np.nanmean(big["chng"])
+# factor = small_rets - big_rets
+# SMB.loc[j] = [i, factor]
+# j += 1
 
 # dat = {'datadate': [], 'HML value': []}
 # HML = pd.DataFrame(data=dat)
@@ -175,27 +178,27 @@ class ThreeFactorLoadings:
 #             yes = (Y.iloc[i] - no) * weights[i]
 #             alf += yes
 #
-        # e_i = []
-        # for i in range(len(weights)):
-        #     kyo = Y.iloc[i] - alf
-        #     predicted = 0
-        #     for j in range(len(model.params)):
-        #         predicted += X.iloc[i][j] * model.params[j]
-        #     kyo -= predicted
-        #     e_i.append(kyo)
-        #
-        # eii = 0
-        # for i in range(len(weights)):
-        #     eii += weights[i] * (e_i[i] ** 2)
-        # delta[q][q] = eii
-    #
-    #     factors.loc[q] = [tics, alf, model.params[0], model.params[1], model.params[2], model.pvalues[0],
-    #                       model.pvalues[1],
-    #                       model.pvalues[2], model.rsquared]
-    #
-    # except Exception as e:
-    #     print(e)
-    #     raise Exception
+# e_i = []
+# for i in range(len(weights)):
+#     kyo = Y.iloc[i] - alf
+#     predicted = 0
+#     for j in range(len(model.params)):
+#         predicted += X.iloc[i][j] * model.params[j]
+#     kyo -= predicted
+#     e_i.append(kyo)
+#
+# eii = 0
+# for i in range(len(weights)):
+#     eii += weights[i] * (e_i[i] ** 2)
+# delta[q][q] = eii
+#
+#     factors.loc[q] = [tics, alf, model.params[0], model.params[1], model.params[2], model.pvalues[0],
+#                       model.pvalues[1],
+#                       model.pvalues[2], model.rsquared]
+#
+# except Exception as e:
+#     print(e)
+#     raise Exception
 
 # B = factors[["Beta_mkt_Exc", "Beta_SMB", "Beta_HML"]]
 # f = df[df["tic"] == (df.tic).mode()[0]].iloc[3:][["datadate", "mkt_excess", "SMB value", "HML value"]]
@@ -224,4 +227,3 @@ class ThreeFactorLoadings:
 
 if __name__ == '__main__':
     tfl = ThreeFactorLoadings()
-
