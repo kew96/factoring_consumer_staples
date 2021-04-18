@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import date
 from collections import Counter
+from dateutil.relativedelta import relativedelta
 
 import pandas as pd
 import numpy as np
@@ -35,7 +36,15 @@ prices = prices.join(final_shares_outstanding.set_index('tic'))
 prices['scale'] = prices.cshoc / prices.final
 prices['prccd'] = prices.prccd * prices.scale
 
-prices = prices[prices.index.get_level_values('datadate').is_month_end][['conm', 'prccd']]
+good_dates = list()
+for year in range(2000, 2021):
+    for month in range(1, 13):
+        last_day = pd.Timestamp(year, month, 1) + relativedelta(months=1, days=-1)
+        while not last_day in prices.index.get_level_values('datadate').values:
+            last_day = last_day - relativedelta(days=1)
+        good_dates.append(last_day)
+
+prices = prices.loc[pd.IndexSlice[:, good_dates], ['conm', 'prccd']]
 prices = prices.rename({'prccd': 'prccm'}, axis=1)
 
 t_bill.Date = pd.to_datetime(t_bill.Date, format='%b %y')
