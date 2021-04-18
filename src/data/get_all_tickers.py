@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA_PATH = Path().cwd().parent.parent.joinpath('data')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 ticker_set = set()
 

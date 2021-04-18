@@ -10,7 +10,7 @@ from tqdm import tqdm
 import warnings
 warnings.filterwarnings("ignore")
 
-DATA_PATH = Path().cwd().parent.parent.joinpath('data')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 
 book_ratios = pd.read_table(DATA_PATH.joinpath('raw', 'prices_assets_liabilities_quarterly.txt'),

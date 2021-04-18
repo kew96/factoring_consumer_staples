@@ -7,7 +7,7 @@ import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
-DATA_PATH = Path().cwd().parent.parent.joinpath('data')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 
 market_values = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),

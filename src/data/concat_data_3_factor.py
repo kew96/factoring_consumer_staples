@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-DATA_PATH = Path.cwd().parent.parent.joinpath('data')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 prices_returns = pd.read_table(DATA_PATH.joinpath('interim', 'prices_returns.txt'),
                                parse_dates=['datadate'],

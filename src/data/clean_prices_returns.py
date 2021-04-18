@@ -11,7 +11,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-DATA_PATH = Path.cwd().parent.parent.joinpath('data')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 consumer_staples = pd.read_csv(DATA_PATH.joinpath('raw', 'sp500_consumer_staples.csv'))
 t_bill = pd.read_csv(DATA_PATH.joinpath('raw', '3_month_t_bill.csv'))

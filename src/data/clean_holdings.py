@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 
-DATA_PATH = Path().cwd().parent.parent.joinpath('data')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 all_holdings = pd.read_table(DATA_PATH.joinpath('raw/holdings.txt'))
 

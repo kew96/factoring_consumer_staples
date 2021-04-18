@@ -7,7 +7,7 @@ from statsmodels.api import WLS
 
 
 class ThreeFactorLoadings:
-    __DATA_PATH = Path.cwd().parent.parent.joinpath('data')
+    __DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
     def __init__(self, *, data=None):
         if not data:
