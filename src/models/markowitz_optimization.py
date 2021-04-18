@@ -68,7 +68,7 @@ class Markowitz:
         max_sharpe_ind = np.argmax(sharpe_ratio)
 
         # Return the weights associated with the max sharpe ratio portfolio
-        return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['ret'])
+        return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['weight'])
 
 
 class ThreeFactorMarkowitz(Markowitz):
@@ -99,18 +99,28 @@ class ThreeFactorMarkowitz(Markowitz):
                              'datadate': pd.to_datetime(self.__data.datadate),
                              'expected_return': mu})
 
+    @staticmethod
+    def __next_period(year, quarter):
+        if quarter == 4:
+            return year+1, 3
+        else:
+            return year, (quarter+1)*3
+
     def __retrieve_universe(self, year, quarter, all_data=False):
         month = quarter * 3
         date_subset = self._expected_return[
             (self._expected_return.datadate.dt.year==year) & (self._expected_return.datadate.dt.month==month)
             ]
-        print(date_subset)
         sorted_date_subset = date_subset.sort_values('expected_return', ascending=False)
         if all_data:
             return sorted_date_subset.drop('datadate', axis=1).set_index('tic')
         else:
-            print(year, month)
-            # print(sorted_date_subset)
+            next_year, next_month = self.__next_period(year, quarter)
+            next_subset = self._expected_return[
+                (self._expected_return.datadate.dt.year == next_year) & (
+                            self._expected_return.datadate.dt.month == next_month)
+                ]
+            sorted_date_subset = sorted_date_subset[sorted_date_subset.tic.isin(list(next_subset.tic))]
             sub_universe = sorted_date_subset.iloc[list(range(10))+list(range(-10, 0))]
             return sub_universe.drop('datadate', axis=1).set_index('tic')
 
@@ -127,11 +137,19 @@ class ThreeFactorMarkowitz(Markowitz):
             for quarter in range(1, 5):
                 if year == start_year and quarter == 1:
                     continue
+                elif year == end_year and quarter == 4:
+                    continue
                 prev_year, prev_quarter = self.__last_period(year, quarter)
                 universe = self.__retrieve_universe(prev_year, prev_quarter)
-                # actual_returns = self.__retrieve_universe(year, quarter, True)
-                # actual_returns
-                w = self._max_one_period_sharpe(universe)
+
+                actual_returns = self.__retrieve_universe(year, quarter, True)
+                wgts = self._max_one_period_sharpe(universe)
+                total_return = 0
+                for ticker, w in zip(universe.index, wgts.weight):
+                    ret = actual_returns.loc[ticker, 'expected_return']
+                    total_return += ret * w
+                print(total_return)
+
 
 
 
