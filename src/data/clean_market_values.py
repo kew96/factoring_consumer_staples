@@ -68,11 +68,11 @@ good_dates = list()
 for year in range(2000, 2021):
     for month in [3, 6, 9, 12]:
         last_day = pd.Timestamp(year, month, 1) + relativedelta(months=1, days=-1)
-        while not last_day in quarter_market_values.datadate.values:
+        while not last_day in quarterly_vals.datadate.values:
             last_day = last_day - relativedelta(days=1)
         good_dates.append(last_day)
 
-quarterly_vals = quarter_market_values[quarter_market_values.datadate.isin(good_dates)]
+quarterly_vals = quarterly_vals[quarterly_vals.datadate.isin(good_dates)]
 
 little_data = list()
 for ticker in quarterly_vals.tic.unique():
