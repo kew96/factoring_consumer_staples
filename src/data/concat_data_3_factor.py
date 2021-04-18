@@ -40,7 +40,6 @@ for ticker in pr_br_mv.tic.unique():
         little_data.append(ticker)
 
 pr_br_mv = pr_br_mv[~pr_br_mv.tic.isin(little_data)]
-pr_br_mv = pr_br_mv.dropna()
 
 pr_br_mv.to_csv(DATA_PATH.joinpath('processed', 'three_factor_model.txt'), index=False, sep='\t')
 

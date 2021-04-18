@@ -138,9 +138,6 @@ prices['chng'] = np.nan
 for ticker in prices.index.get_level_values('tic').unique():
     subset = prices.loc[pd.IndexSlice[ticker, :], :]
     subset.chng = subset.prccm.pct_change()
-    if ticker in ['ABF' 'ALCO']:
-        print(ticker)
-        print(subset)
     prices.loc[pd.IndexSlice[ticker, :], 'chng'] = subset.loc[:, 'chng']
 
 consumer_staples['chng'] = consumer_staples.Price.pct_change()
@@ -148,22 +145,28 @@ consumer_staples['chng'] = consumer_staples.Price.pct_change()
 consumer_staples['mkt_excess'] = consumer_staples.chng - t_bill.Price/100
 
 prices = prices.reset_index()
+prices['temp_date'] = prices.datadate.dt.strftime('%Y-%b')
 
 consumer_staples = consumer_staples.reset_index()
 consumer_staples.Date = pd.to_datetime(consumer_staples.Date)
+consumer_staples['temp_date'] = consumer_staples.Date.dt.strftime('%Y-%b')
 
-prices_w_cs = prices.merge(consumer_staples.reset_index(), how='left',
-                           left_on='datadate', right_on='Date', suffixes=('', '_cs'))
+prices_w_cs = prices.merge(consumer_staples, how='left',
+                           left_on='temp_date', right_on='temp_date', suffixes=('', '_cs'))
 
 t_bill = t_bill.reset_index()
 t_bill.Date = pd.to_datetime(t_bill.Date)
+t_bill['temp_date'] = t_bill.Date.dt.strftime('%Y-%b')
 
-prices_w_cs_w_tb = prices_w_cs.merge(t_bill, how='left', left_on='datadate', right_on='Date', suffixes=('', '_tb'))
+
+
+prices_w_cs_w_tb = prices_w_cs.merge(t_bill, how='left', left_on='temp_date', right_on='temp_date',
+                                     suffixes=('', '_tb'))
 prices_w_cs_w_tb.Price_tb = prices_w_cs_w_tb.Price_tb / 100
 prices_w_cs_w_tb = prices_w_cs_w_tb.dropna(subset=['chng'])
 prices_w_cs_w_tb = prices_w_cs_w_tb.drop(
-    ['index', 'Date', 'Price', 'Open', 'High', 'Low', 'Vol.', 'Change %', 'Date_tb', 'Open_tb', 'High_tb', 'Low_tb',
-     'Change %_tb'],
+    ['Date', 'Price', 'Open', 'High', 'Low', 'Vol.', 'Change %', 'Date_tb', 'Open_tb', 'High_tb', 'Low_tb',
+     'Change %_tb', 'temp_date'],
     axis=1
 )
 
