@@ -12,7 +12,7 @@ class ThreeFactorLoadings:
     def __init__(self, *, data=None):
         if not data:
             data = self.__DATA_PATH.joinpath('processed', 'three_factor_model.txt')
-        self.__data = pd.read_table(data)
+        self.__data = pd.read_table(data, parse_dates=['datadate'])
         self._generate_smb()
         self._generate_hml()
         self._generate_distinct_factors()
