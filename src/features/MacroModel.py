@@ -19,6 +19,7 @@ class ThreeFactorLoadings:
         self.alpha, self.delta, self.factor_loading, self.p_values = self._generate_distinct_factors()
         self.Sigma = self._generate_factor_covariance()
 
+
     @property
     def data(self):
         return self.__data
@@ -41,7 +42,7 @@ class ThreeFactorLoadings:
             smb.append(factor)
 
         SMB = pd.DataFrame({'datadate': self.__data.datadate.unique(), 'smb': smb})
-        self.__data = self.__data.merge(SMB, how='left', on='datadate')
+        self.__data = self.__data.merge(SMB, how='left', on='datadate').drop_duplicates()
 
     def _generate_hml(self):
         hml = list()
@@ -61,7 +62,7 @@ class ThreeFactorLoadings:
             hml.append(factor)
 
         HML = pd.DataFrame({'datadate': self.__data.datadate.unique(), 'hml': hml})
-        self.__data = self.__data.merge(HML, how='left', on='datadate')
+        self.__data = self.__data.merge(HML, how='left', on='datadate').drop_duplicates()
 
     def _generate_distinct_factors(self):
         alphas = list()
@@ -114,10 +115,14 @@ class ThreeFactorLoadings:
             delta_diag.append(squared_error)
 
         return (
-            pd.Series(alphas, index=self.__data.tic.unique()),
-            pd.DataFrame(np.diagflat(delta_diag), columns=self.__data.tic.unique(), index=self.__data.tic.unique()),
-            pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml}, index=self.__data.tic.unique()),
-            pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml}, index=self.__data.tic.unique())
+            pd.Series(alphas,
+                      index=self.__data.tic.unique()).drop_duplicates(),
+            pd.DataFrame(np.diagflat(delta_diag), columns=self.__data.tic.unique(),
+                         index=self.__data.tic.unique()).drop_duplicates(),
+            pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
+                         index=self.__data.tic.unique()).drop_duplicates(),
+            pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
+                         index=self.__data.tic.unique()).drop_duplicates()
         )
 
     def _generate_factor_covariance(self):
