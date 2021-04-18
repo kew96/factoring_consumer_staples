@@ -40,21 +40,25 @@ class Markowitz:
 
         portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
 
-        portfolio_opt.solve(verbose=True)
+        portfolio_opt.solve(verbose=False, solver='SCS')
 
-        return {'excess_return': total_return.value, 'weights': weights.value}
+        return {'excess_return': total_return.value[0], 'weights': weights.value}
 
     def _max_one_period_sharpe(self, expected_return, num_points=300, *, min_variance=0, max_variance=3):
 
         all_returns = np.zeros(num_points)
-        all_weights = np.array(num_points)
-        all_variances = np.linspace(min_variance, max_variance, num_points)
+        all_weights = np.zeros((num_points, 20))
+        if not min_variance:
+            all_variances = np.linspace(min_variance, max_variance, num_points+1)[1:]
+        else:
+            all_variances = np.linspace(min_variance, max_variance, num_points)
 
         for ind, variance in enumerate(all_variances):
             # Get optimal weights and associated return given a portfolio variance
             result = self.__optimal_one_period_weights(expected_return, variance)
+            # print(result)
 
-            all_returns[ind] = result['period_return']
+            all_returns[ind] = result['excess_return']
             all_weights[ind] = result['weights']
 
         # Sharpe ratio defined as return divided by volatility
@@ -64,7 +68,7 @@ class Markowitz:
         max_sharpe_ind = np.argmax(sharpe_ratio)
 
         # Return the weights associated with the max sharpe ratio portfolio
-        return all_weights[max_sharpe_ind]
+        return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['ret'])
 
 
 class ThreeFactorMarkowitz(Markowitz):
@@ -95,25 +99,45 @@ class ThreeFactorMarkowitz(Markowitz):
                              'datadate': pd.to_datetime(self.__data.datadate),
                              'expected_return': mu})
 
-    def __retrieve_universe(self, year, quarter):
+    def __retrieve_universe(self, year, quarter, all_data=False):
         month = quarter * 3
         date_subset = self._expected_return[
             (self._expected_return.datadate.dt.year==year) & (self._expected_return.datadate.dt.month==month)
             ]
+        print(date_subset)
         sorted_date_subset = date_subset.sort_values('expected_return', ascending=False)
-        sub_universe = sorted_date_subset.iloc[list(range(10))+list(range(-10, 0))]
-        return sub_universe.drop('datadate', axis=1).set_index('tic')
+        if all_data:
+            return sorted_date_subset.drop('datadate', axis=1).set_index('tic')
+        else:
+            print(year, month)
+            # print(sorted_date_subset)
+            sub_universe = sorted_date_subset.iloc[list(range(10))+list(range(-10, 0))]
+            return sub_universe.drop('datadate', axis=1).set_index('tic')
+
+    @staticmethod
+    def __last_period(year, quarter):
+        if quarter == 1:
+            return year-1, 4
+        else:
+            return year, quarter-1
 
     def max_sharpe_portfolios(self, start_year=2000, end_year=2020):
         weights = list()
         for year in range(start_year, end_year+1):
             for quarter in range(1, 5):
-                universe = self.__retrieve_universe(year, quarter)
-                print(self._max_one_period_sharpe(universe))
+                if year == start_year and quarter == 1:
+                    continue
+                prev_year, prev_quarter = self.__last_period(year, quarter)
+                universe = self.__retrieve_universe(prev_year, prev_quarter)
+                # actual_returns = self.__retrieve_universe(year, quarter, True)
+                # actual_returns
+                w = self._max_one_period_sharpe(universe)
+
 
 
 if __name__ == '__main__':
     from src.features import MacroModel
     tfl = MacroModel.ThreeFactorLoadings()
     tfm = ThreeFactorMarkowitz(tfl.data, tfl.alpha, tfl.factor_loading, tfl.Sigma)
-    print(tfm.max_sharpe_portfolios(2000, 2002))
+    # print(tfm.max_sharpe_portfolios(2000, 2002))
+    tfm.max_sharpe_portfolios(2000, 2002)
