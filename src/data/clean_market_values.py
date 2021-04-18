@@ -1,8 +1,10 @@
 from pathlib import Path
 from collections import Counter
+from dateutil.relativedelta import relativedelta
 
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -59,8 +61,27 @@ for elem in bad_data.items():
                 subset.loc[ind, 'mkvaltq'] = new_value
     market_values[market_values.tic == elem[0]] = subset
 
-monthly_vals = market_values[market_values.datadate.dt.is_month_end]
-quarterly_vals = monthly_vals[monthly_vals.datadate.dt.month.isin([3, 6, 9, 12])]
+quarter_market_vals = market_values[market_values.datadate.dt.month.isin([3, 6, 9, 12])]
+quarter_market_values = quarter_market_vals[quarter_market_vals.datadate.dt.day > 25]
+
+keep = list()
+for d in tqdm(quarter_market_values.datadate):
+    if d.is_month_end:
+        keep.append(True)
+    else:
+        next_day = d + relativedelta(days=1)
+        if next_day.month == 12 and 26 <= next_day.day <= 30:
+            continue
+        if not quarter_market_values[(quarter_market_values.datadate.dt.year==next_day.year) & (
+                quarter_market_values.datadate.dt.month==next_day.month) & (
+                quarter_market_values.datadate.dt.day>=next_day.day) & (
+                quarter_market_values.datadate.dt.day<=next_day.day+5)].empty:
+            keep.append(False)
+        else:
+            keep.append(True)
+
+quarterly_vals = quarter_market_values[keep]
+# quarterly_vals = monthly_vals[monthly_vals.datadate.dt.month.isin([3, 6, 9, 12])]
 
 little_data = list()
 for ticker in quarterly_vals.tic.unique():
@@ -69,6 +90,11 @@ for ticker in quarterly_vals.tic.unique():
 
 quarterly_vals = quarterly_vals[~quarterly_vals.tic.isin(little_data)]
 
-quarterly_vals.to_csv(DATA_PATH.joinpath('interim', 'market_values.txt'), index=False, sep='\t')
+dates = quarterly_vals.datadate.unique()
+dates.sort()
+print(len(dates))
+print(dates)
+
+# quarterly_vals.to_csv(DATA_PATH.joinpath('interim', 'market_values.txt'), index=False, sep='\t')
 
 print('Cleaned market values!')
