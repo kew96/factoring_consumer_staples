@@ -9,6 +9,9 @@ class Markowitz:
 
     def __optimal_one_period_weights(self, expected_return, max_variance):
 
+        # Removing stocks not in universe
+        sigma = self.sigma.loc[expected_return.index][expected_return.index]
+
         # Initiate variable for the weights to be optimized over
         weights = cp.Variable(len(expected_return))
 
@@ -16,15 +19,17 @@ class Markowitz:
         total_return = cp.matmul(expected_return.values.reshape((1, -1)), weights)
 
         # Define the variance of the portfolio given the weights
-        variance = cp.quad_form(weights, self.sigma.values)
+        variance = cp.quad_form(weights, sigma.values)
 
         # Define the total amount invested between all assets
         total_invested = cp.sum(weights)
 
         # Must go long the first 10 assets and short the last 10 assets
         long_short = [
-            0 <= weights[:10] <= 1, # long
-            -1 <= weights[10:] <= 0 # short
+            weights[:10] <= 1, # long
+            weights[:10] >= 0,
+            weights[10:] <= 0, # short
+            weights[10:] >= -1
         ]
 
         # Aggregate constraints into one list
@@ -32,9 +37,9 @@ class Markowitz:
         constraints.append(variance <= max_variance)
         constraints.append(total_invested == 1)
 
-        portfolio_opt = cp.Problem(cp.Maximize(total_return, constraints=constraints))
+        portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
 
-        portfolio_opt.solve()
+        portfolio_opt.solve(verbose=True)
 
         return {'excess_return': total_return.value, 'weights': weights.value}
 
