@@ -5,7 +5,6 @@ from dateutil.relativedelta import relativedelta
 
 import pandas as pd
 import numpy as np
-from tqdm import tqdm, trange
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -66,7 +65,7 @@ quarter_market_vals = market_values[market_values.datadate.dt.month.isin([3, 6, 
 quarterly_vals = quarter_market_vals[quarter_market_vals.datadate.dt.day > 25]
 
 good_dates = list()
-for year in trange(2000, 2021):
+for year in range(2000, 2021):
     for month in [3, 6, 9, 12]:
         last_day = pd.Timestamp(year, month, 1) + relativedelta(months=1, days=-1)
         while not last_day in quarter_market_values.datadate.values:
