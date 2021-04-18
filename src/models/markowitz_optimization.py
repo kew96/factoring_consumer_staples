@@ -4,17 +4,16 @@ import cvxpy as cp
 
 class Markowitz:
 
-    def __init__(self, df, sigma):
-        self.expected_return = df.pop('expected_return')
+    def __init__(self, sigma):
         self.sigma = sigma
 
-    def __optimal_weights(self, expected_returns, max_variance):
+    def __optimal_one_period_weights(self, expected_return, max_variance):
 
         # Initiate variable for the weights to be optimized over
-        weights = cp.Variable(len(self.expected_return))
+        weights = cp.Variable(len(expected_return))
 
         # Define the objective function for the expected return
-        total_return = cp.matmul(self.expected_return.values, weights)
+        total_return = cp.matmul(expected_return.values.reshape((1, -1)), weights)
 
         # Define the variance of the portfolio given the weights
         variance = cp.quad_form(weights, self.sigma.values)
@@ -39,7 +38,7 @@ class Markowitz:
 
         return {'excess_return': total_return.value, 'weights': weights.value}
 
-    def max_sharpe(self, date, num_points=300, *, min_variance=0, max_variance=3):
+    def _max_one_period_sharpe(self, expected_return, num_points=300, *, min_variance=0, max_variance=3):
 
         all_returns = np.zeros(num_points)
         all_weights = np.array(num_points)
@@ -47,7 +46,7 @@ class Markowitz:
 
         for ind, variance in enumerate(all_variances):
             # Get optimal weights and associated return given a portfolio variance
-            result = self.__optimal_weights(variance)
+            result = self.__optimal_one_period_weights(expected_return, variance)
 
             all_returns[ind] = result['period_return']
             all_weights[ind] = result['weights']
