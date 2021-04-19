@@ -142,6 +142,8 @@ class ThreeFactorMarkowitz(Markowitz):
     max_sharpe_portfolios(self, start_year=2000, end_year=2020, num_points=300, min_variance=0, max_variance=3)
         Calculates the realized return for each quarter from start_year to end_year based off expected asset returns
         from previous quarter.
+    max_one_period_sharpe(expected_return, num_points=300, min_variance=0, max_variance=3)
+        Returns a pandas.DataFrame with tickers as the index and their respective weights as the values.
     """
 
     def __init__(self, data, alphas, factor_loadings, sigma):
@@ -163,7 +165,7 @@ class ThreeFactorMarkowitz(Markowitz):
         sigma: pandas.DataFrame
             An n x n DataFrame that represents the covariance matrix. Uses tickers as both the index and column names.
         """
-        self.__data = data
+        self.__raw_data = data
         self.alphas = alphas
         self.factor_loadings = factor_loadings
         self._expected_return = self._expected_asset_return()
@@ -172,8 +174,8 @@ class ThreeFactorMarkowitz(Markowitz):
     def _expected_asset_return(self):
 
         # Combines the factor loadings, expected factor returns, and alphas
-        factor_returns_loadings = self.__data.merge(self.factor_loadings.reset_index(), left_on='tic', right_on='index',
-                                                    how='left', suffixes=('', '_loading'))
+        factor_returns_loadings = self.__raw_data.merge(self.factor_loadings.reset_index(), left_on='tic', right_on='index',
+                                                        how='left', suffixes=('', '_loading'))
 
         modified_alpha = self.alphas.reset_index().rename({0: 'alpha'}, axis=1)
         factor_returns_loadings_alphas = factor_returns_loadings.merge(modified_alpha, left_on='tic',
@@ -190,8 +192,8 @@ class ThreeFactorMarkowitz(Markowitz):
         # Combines all expected returns
         mu = factor_returns_loadings_alphas.alpha + mkt_excess_return + smb_return + hml_return
 
-        return pd.DataFrame({'tic': self.__data.tic,
-                             'datadate': pd.to_datetime(self.__data.datadate),
+        return pd.DataFrame({'tic': self.__raw_data.tic,
+                             'datadate': pd.to_datetime(self.__raw_data.datadate),
                              'expected_return': mu})
 
     @staticmethod
@@ -275,8 +277,8 @@ class ThreeFactorMarkowitz(Markowitz):
                 universe = self.__retrieve_universe(prev_year, prev_quarter, universe_size)
 
                 # Retrieve the actual return for the current period
-                actual_returns = self.__data[(self.__data.datadate.dt.year==year) & (
-                        self.__data.datadate.dt.month==quarter*3)].set_index('tic')
+                actual_returns = self.__raw_data[(self.__raw_data.datadate.dt.year == year) & (
+                        self.__raw_data.datadate.dt.month == quarter * 3)].set_index('tic')
 
                 # Calculate the optimal weights given a universe
                 wgts = self.max_one_period_sharpe(universe, num_points,
