@@ -129,7 +129,7 @@ class ThreeFactorMarkowitz(Markowitz):
         else:
             return year, quarter-1
 
-    def max_sharpe_portfolios(self, start_year=2000, end_year=2020):
+    def max_sharpe_portfolios(self, start_year=2000, end_year=2020, num_points=300, *, min_variance=0, max_variance=3):
         weights = list()
         total_returns = list()
         years = list()
@@ -144,7 +144,8 @@ class ThreeFactorMarkowitz(Markowitz):
                 universe = self.__retrieve_universe(prev_year, prev_quarter)
                 actual_returns = self.__data[(self.__data.datadate.dt.year==year) & (
                         self.__data.datadate.dt.month==quarter*3)].set_index('tic')
-                wgts = self._max_one_period_sharpe(universe)
+                wgts = self._max_one_period_sharpe(universe, num_points,
+                                                   min_variance=min_variance, max_variance=max_variance)
                 total_return = 0
                 for ticker, w in zip(universe.index, wgts.weight):
                     ret = actual_returns.loc[ticker, 'chng']
