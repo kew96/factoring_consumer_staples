@@ -1,6 +1,7 @@
 import numpy as np
 import cvxpy as cp
 import pandas as pd
+from tqdm import trange
 
 
 class Markowitz:
@@ -36,7 +37,7 @@ class Markowitz:
         # Aggregate constraints into one list
         constraints = long_short
         constraints.append(variance <= max_variance)
-        constraints.append(total_invested == 1)
+        constraints.append(total_invested == 0)
 
         portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
 
@@ -106,23 +107,20 @@ class ThreeFactorMarkowitz(Markowitz):
         else:
             return year, (quarter+1)*3
 
-    def __retrieve_universe(self, year, quarter, all_data=False):
+    def __retrieve_universe(self, year, quarter):
         month = quarter * 3
         date_subset = self._expected_return[
             (self._expected_return.datadate.dt.year==year) & (self._expected_return.datadate.dt.month==month)
             ]
         sorted_date_subset = date_subset.sort_values('expected_return', ascending=False)
-        if all_data:
-            return sorted_date_subset.drop('datadate', axis=1).set_index('tic')
-        else:
-            next_year, next_month = self.__next_period(year, quarter)
-            next_subset = self._expected_return[
-                (self._expected_return.datadate.dt.year == next_year) & (
-                            self._expected_return.datadate.dt.month == next_month)
-                ]
-            sorted_date_subset = sorted_date_subset[sorted_date_subset.tic.isin(list(next_subset.tic))]
-            sub_universe = sorted_date_subset.iloc[list(range(10))+list(range(-10, 0))]
-            return sub_universe.drop('datadate', axis=1).set_index('tic')
+        next_year, next_month = self.__next_period(year, quarter)
+        next_subset = self._expected_return[
+            (self._expected_return.datadate.dt.year == next_year) & (
+                        self._expected_return.datadate.dt.month == next_month)
+            ]
+        sorted_date_subset = sorted_date_subset[sorted_date_subset.tic.isin(list(next_subset.tic))]
+        sub_universe = sorted_date_subset.iloc[list(range(10))+list(range(-10, 0))]
+        return sub_universe.drop('datadate', axis=1).set_index('tic')
 
     @staticmethod
     def __last_period(year, quarter):
@@ -133,29 +131,35 @@ class ThreeFactorMarkowitz(Markowitz):
 
     def max_sharpe_portfolios(self, start_year=2000, end_year=2020):
         weights = list()
-        for year in range(start_year, end_year+1):
-            for quarter in range(1, 5):
+        total_returns = list()
+        years = list()
+        months = list()
+        for year in trange(start_year, end_year+1, desc='Year'):
+            for quarter in trange(1, 5, desc='Quarter', leave=False):
                 if year == start_year and quarter == 1:
                     continue
                 elif year == end_year and quarter == 4:
                     continue
                 prev_year, prev_quarter = self.__last_period(year, quarter)
                 universe = self.__retrieve_universe(prev_year, prev_quarter)
-
-                actual_returns = self.__retrieve_universe(year, quarter, True)
+                actual_returns = self.__data[(self.__data.datadate.dt.year==year) & (
+                        self.__data.datadate.dt.month==quarter*3)].set_index('tic')
                 wgts = self._max_one_period_sharpe(universe)
                 total_return = 0
                 for ticker, w in zip(universe.index, wgts.weight):
-                    ret = actual_returns.loc[ticker, 'expected_return']
+                    ret = actual_returns.loc[ticker, 'chng']
                     total_return += ret * w
-                print(total_return)
-
-
+                years.append(year)
+                months.append(quarter * 3)
+                total_returns.append(total_return)
+                weights.append(wgts)
+        return pd.DataFrame({'year': years, 'month': months, 'ret': total_returns}).set_index(['year', 'month'])
 
 
 if __name__ == '__main__':
     from src.features import MacroModel
     tfl = MacroModel.ThreeFactorLoadings()
     tfm = ThreeFactorMarkowitz(tfl.data, tfl.alpha, tfl.factor_loading, tfl.Sigma)
-    # print(tfm.max_sharpe_portfolios(2000, 2002))
-    tfm.max_sharpe_portfolios(2000, 2002)
+    pd.options.display.max_rows = None
+    print(tfm.max_sharpe_portfolios(2000, 2020))
+    # tfm.max_sharpe_portfolios(2000, 2002)
