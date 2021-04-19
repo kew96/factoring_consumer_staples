@@ -1,6 +1,5 @@
 from pathlib import Path
 from collections import Counter
-from datetime import date
 from dateutil.relativedelta import relativedelta
 
 import pandas as pd
