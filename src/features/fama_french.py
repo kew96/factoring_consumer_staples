@@ -5,8 +5,10 @@ import pandas as pd
 
 from statsmodels.api import WLS
 
+from src.models.markowitz_optimization import ThreeFactorMarkowitz
 
-class ThreeFactorLoadings:
+
+class ThreeFactorModel(ThreeFactorMarkowitz):
     __DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
     def __init__(self, *, data=None):
@@ -16,9 +18,9 @@ class ThreeFactorLoadings:
         self._generate_smb()
         self._generate_hml()
         self._generate_distinct_factors()
-        self.alpha, self.delta, self.factor_loading, self.p_values = self._generate_distinct_factors()
-        self.Sigma = self._generate_factor_covariance()
-
+        self.alphas, self.delta, self.factor_loadings, self.p_values = self._generate_distinct_factors()
+        self.sigma = self._generate_factor_covariance()
+        super().__init__(self.__data, self.alphas, self.factor_loadings, self.sigma)
 
     @property
     def data(self):
@@ -140,5 +142,5 @@ class ThreeFactorLoadings:
             cov = np.dot(diff.reshape((3,1)), diff.reshape((1,3)))
             F += w1 * cov
 
-        V = np.dot(np.dot(self.factor_loading.values, F), self.factor_loading.values.T)
-        return pd.DataFrame(V, columns=self.factor_loading.index, index=self.factor_loading.index)
+        V = np.dot(np.dot(self.factor_loadings.values, F), self.factor_loadings.values.T)
+        return pd.DataFrame(V, columns=self.factor_loadings.index, index=self.factor_loadings.index)
