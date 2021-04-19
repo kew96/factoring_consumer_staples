@@ -154,12 +154,3 @@ class ThreeFactorMarkowitz(Markowitz):
                 total_returns.append(total_return)
                 weights.append(wgts)
         return pd.DataFrame({'year': years, 'month': months, 'ret': total_returns}).set_index(['year', 'month'])
-
-
-if __name__ == '__main__':
-    from src.features import fama_french
-    tfl = fama_french.ThreeFactorModel()
-    tfm = ThreeFactorMarkowitz(tfl.data, tfl.alpha, tfl.factor_loadings, tfl.sigma)
-    pd.options.display.max_rows = None
-    print(tfm.max_sharpe_portfolios(2000, 2020))
-    # tfm.max_sharpe_portfolios(2000, 2002)
