@@ -33,7 +33,7 @@ def get_bad_data(values):
 
 bad_data = get_bad_data(market_values)
 
-# One period missing market values imputation
+# One period missing market values imputation, assumes linearity
 def impute_one_period(data):
     if np.isnan(data.iloc[0]): # If the first period is missing
         diff = data.iloc[2] - data.iloc[1] # assume constant growth
@@ -60,8 +60,12 @@ for elem in bad_data.items():
                 subset.loc[ind, 'mkvaltq'] = new_value
     market_values[market_values.tic == elem[0]] = subset
 
+# Reduces data to only months that are quarter end and that have a date after the 25th
+
 quarter_market_vals = market_values[market_values.datadate.dt.month.isin([3, 6, 9, 12])]
 quarterly_vals = quarter_market_vals[quarter_market_vals.datadate.dt.day > 25]
+
+# Iterates through all dates to find the latest date available since quarters may not end on an available day
 
 good_dates = list()
 for year in range(2000, 2021):
@@ -72,6 +76,8 @@ for year in range(2000, 2021):
         good_dates.append(last_day)
 
 quarterly_vals = quarterly_vals[quarterly_vals.datadate.isin(good_dates)]
+
+# Ensures each asset has at least three data points
 
 little_data = list()
 for ticker in quarterly_vals.tic.unique():

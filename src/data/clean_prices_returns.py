@@ -22,7 +22,11 @@ prices = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_dail
 
 num_tickers = len(prices.index.get_level_values('tic').unique())
 
+# Creates dict to be turned into DataFrame
+
 final_shares_outstanding_dict = {'tic': [0] * num_tickers, 'final': [0] * num_tickers}
+
+# Retrieves the latest number of shares outstanding to be used to adjust historical share prices
 
 for ind, ticker in enumerate(prices.index.get_level_values('tic').unique()):
     subset = prices.loc[ticker]
@@ -32,9 +36,13 @@ for ind, ticker in enumerate(prices.index.get_level_values('tic').unique()):
 
 final_shares_outstanding = pd.DataFrame(final_shares_outstanding_dict)
 
+# Scales historical prices to be in terms of final, total outstanding shares
+
 prices = prices.join(final_shares_outstanding.set_index('tic'))
 prices['scale'] = prices.cshoc / prices.final
 prices['prccd'] = prices.prccd * prices.scale
+
+# Finds the latest date available for each quarter, out of all assets
 
 good_dates = list()
 for year in range(2000, 2021):
@@ -47,8 +55,12 @@ for year in range(2000, 2021):
 prices = prices.loc[pd.IndexSlice[:, good_dates], ['conm', 'prccd']]
 prices = prices.rename({'prccd': 'prccm'}, axis=1)
 
+# Converts month and year combos to datetimes
+
 t_bill.Date = pd.to_datetime(t_bill.Date, format='%b %y')
 consumer_staples.Date = pd.to_datetime(consumer_staples.Date, format='%b %y')
+
+# Converts datetimes to the last day of the month
 
 def convert_to_last_day(dt):
     year = dt.year
@@ -59,8 +71,13 @@ def convert_to_last_day(dt):
 t_bill.Date = t_bill.Date.apply(convert_to_last_day)
 consumer_staples.Date = consumer_staples.Date.apply(convert_to_last_day)
 
+# Sets date as the index
+
 t_bill = t_bill.set_index('Date').sort_index()
 consumer_staples = consumer_staples.set_index('Date').sort_index()
+
+# Retrieves missing number of missing data points (outside of beginning and end) and prints the count, ticker,
+# and company name
 
 def get_bad_data(prices):
     bad_data = list()
@@ -76,6 +93,8 @@ def get_bad_data(prices):
     return Counter(bad_data)
 
 bad_data = get_bad_data(prices)
+
+# Imputes two periods of missing data, assuming linearity
 
 def impute_two_periods(data):
     if np.sum(np.isnan(data.iloc[:2])) == 2: # If first two periods missing
@@ -107,6 +126,8 @@ for elem in bad_data.items():
             subset.iloc[ind:ind+2].prccm = new_vals
     prices.loc[pd.IndexSlice[:, elem[0]], :] = subset
 
+# Imputes one period of missing data, assuming linearity
+
 def impute_one_period(data):
     if np.isnan(data.iloc[0]): # If the first period is missing
         diff = data.iloc[2] - data.iloc[1] # assume constant growth
@@ -116,7 +137,6 @@ def impute_one_period(data):
     else: # If the last period is missing
         diff = data.iloc[1] - data.iloc[0] # assume constant growth
         return data.iloc[1] + diff
-
 
 for elem in bad_data.items():
     subset = prices.loc[pd.IndexSlice[:, elem[0][0]], :]
@@ -133,6 +153,8 @@ for elem in bad_data.items():
                 subset.iloc[ind] = subset.iloc[ind].fillna(new_value)
     prices.loc[pd.IndexSlice[:, elem[0][0]], :] = subset
 
+# Calculates the percent change for each asset from the previous period
+
 prices['chng'] = np.nan
 
 for ticker in prices.index.get_level_values('tic').unique():
@@ -140,9 +162,15 @@ for ticker in prices.index.get_level_values('tic').unique():
     subset.chng = subset.prccm.pct_change()
     prices.loc[pd.IndexSlice[ticker, :], 'chng'] = subset.loc[:, 'chng']
 
+# Percent change for consumer staples index
+
 consumer_staples['chng'] = consumer_staples.Price.pct_change()
 
+# Market (consumer staples index) excess return is the percent change - the return on the t-bill
+
 consumer_staples['mkt_excess'] = consumer_staples.chng - t_bill.Price/100
+
+# Creates a column for the year and month to avoid issues with days of the month
 
 prices = prices.reset_index()
 prices['temp_date'] = prices.datadate.dt.strftime('%Y-%b')
@@ -158,8 +186,6 @@ t_bill = t_bill.reset_index()
 t_bill.Date = pd.to_datetime(t_bill.Date)
 t_bill['temp_date'] = t_bill.Date.dt.strftime('%Y-%b')
 
-
-
 prices_w_cs_w_tb = prices_w_cs.merge(t_bill, how='left', left_on='temp_date', right_on='temp_date',
                                      suffixes=('', '_tb'))
 prices_w_cs_w_tb.Price_tb = prices_w_cs_w_tb.Price_tb / 100
@@ -169,6 +195,8 @@ prices_w_cs_w_tb = prices_w_cs_w_tb.drop(
      'Change %_tb', 'temp_date'],
     axis=1
 )
+
+# Ensures that each asset has at least three data points
 
 little_data = list()
 for ticker in prices_w_cs_w_tb.tic.unique():

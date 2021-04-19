@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore")
 
 DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
+# Loading all data
 
 book_ratios = pd.read_table(DATA_PATH.joinpath('raw', 'prices_assets_liabilities_quarterly.txt'),
                             parse_dates=['datadate'])
@@ -20,6 +21,8 @@ book_ratios['book_value'] = (book_ratios.atq - book_ratios.ltq) * 1_000_000
 shares = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
                        usecols=['datadate', 'tic', 'cshoc'], parse_dates=['datadate'])
 book_ratios = book_ratios.merge(shares, on=['datadate', 'tic'], how='left')
+
+# Imputes missing shares at the end of a period by taking the most recent value
 
 def fix_missing_shares(df):
     for ticker in tqdm(df.tic.unique(), desc='tickers'):
@@ -49,9 +52,16 @@ def fix_missing_shares(df):
 
 book_ratios = fix_missing_shares(book_ratios)
 
+# Book value per share = book value / shares outstanding
+
 book_ratios['bv_per_share'] = book_ratios.book_value / book_ratios.cshoc
 
+# Price to book ratio = price / book value per share
+
 book_ratios['ptb'] = book_ratios.prccq / book_ratios.bv_per_share
+
+# Retrieves all data values with missing values and prints the ticker, name, and number of missing points
+# skips all missing values at the beginning and end
 
 def get_bad_data(book_ratios):
     bad_data = list()
@@ -70,6 +80,8 @@ def get_bad_data(book_ratios):
     return Counter(bad_data)
 
 bad_data_1 = get_bad_data(book_ratios)
+
+# Imputes the missing data for two periods, assumes linearity
 
 def impute_two_periods(data):
     # print(data)
@@ -103,6 +115,8 @@ for elem in bad_data_1.items():
             subset.loc[ind:ind+2, 'ptb'] = new_vals
     book_ratios[book_ratios.tic == elem[0]] = subset
 
+# Imputes the missing data for one period, assumes linearity
+
 def impute_one_period(data):
     if np.isnan(data.iloc[0]): # If the first period is missing
         diff = data.iloc[2] - data.iloc[1] # assume constant growth
@@ -128,6 +142,8 @@ for elem in bad_data_1.items():
                 new_value = impute_one_period(three_set)
                 subset.loc[ind, 'ptb'] = new_value
     book_ratios[book_ratios.tic == elem[0]] = subset
+
+# Ensures that each asset has at least three data points
 
 little_data = list()
 for ticker in book_ratios.tic.unique():
