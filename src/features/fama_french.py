@@ -144,3 +144,8 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
         V = np.dot(np.dot(self.factor_loadings.values, F), self.factor_loadings.values.T)
         return pd.DataFrame(V, columns=self.factor_loadings.index, index=self.factor_loadings.index)
+
+if __name__ == '__main__':
+    tfm = ThreeFactorModel()
+    pd.options.display.max_columns = None
+    print(tfm._ThreeFactorModel__data)
