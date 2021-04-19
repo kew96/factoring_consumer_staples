@@ -74,15 +74,15 @@ class Markowitz:
 
 class ThreeFactorMarkowitz(Markowitz):
 
-    def __init__(self, data, alphas, loadings, sigma):
+    def __init__(self, data, alphas, factor_loadings, sigma):
         self.__data = data
         self.alphas = alphas
-        self.loadings = loadings
+        self.factor_loadings = factor_loadings
         self._expected_return = self._expected_asset_return()
         super().__init__(sigma)
 
     def _expected_asset_return(self):
-        factor_returns_loadings = self.__data.merge(self.loadings.reset_index(), left_on='tic', right_on='index',
+        factor_returns_loadings = self.__data.merge(self.factor_loadings.reset_index(), left_on='tic', right_on='index',
                                                     how='left', suffixes=('', '_loading'))
         modified_alpha = self.alphas.reset_index().rename({0: 'alpha'}, axis=1)
         factor_returns_loadings_alphas = factor_returns_loadings.merge(modified_alpha, left_on='tic',
@@ -157,9 +157,9 @@ class ThreeFactorMarkowitz(Markowitz):
 
 
 if __name__ == '__main__':
-    from src.features import MacroModel
-    tfl = MacroModel.ThreeFactorLoadings()
-    tfm = ThreeFactorMarkowitz(tfl.data, tfl.alpha, tfl.factor_loading, tfl.Sigma)
+    from src.features import fama_french
+    tfl = fama_french.ThreeFactorModel()
+    tfm = ThreeFactorMarkowitz(tfl.data, tfl.alpha, tfl.factor_loadings, tfl.sigma)
     pd.options.display.max_rows = None
     print(tfm.max_sharpe_portfolios(2000, 2020))
     # tfm.max_sharpe_portfolios(2000, 2002)
