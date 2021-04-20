@@ -33,7 +33,7 @@ prices.cshoc = nan_prices
 nan_chng = list()
 for entry in prices.chng:
     try:
-        nan_chng.append(float(entry)*1_000)
+        nan_chng.append(float(entry))
     except ValueError:
         nan_chng.append(np.nan)
 
@@ -52,7 +52,6 @@ for year in range(2000, 2021):
         while not last_day in prices.index.get_level_values('datadate').values:
             last_day = last_day - relativedelta(days=1)
         good_dates.append(last_day)
-
 prices = prices.loc[pd.IndexSlice[:, good_dates], ['conm', 'prccd', 'chng']]
 
 prices = prices.rename({'prccd': 'prccm'}, axis=1)
@@ -197,6 +196,8 @@ for ticker in prices_w_cs_w_tb.tic.unique():
         little_data.append(ticker)
 
 prices_w_cs_w_tb = prices_w_cs_w_tb[~prices_w_cs_w_tb.tic.isin(little_data)]
+
+prices_w_cs_w_tb = prices_w_cs_w_tb.dropna(subset=['chng', 'chng_cs', 'mkt_excess', 'Price_tb'])
 
 prices_w_cs_w_tb.to_csv(DATA_PATH.joinpath('interim', 'prices_returns.txt'), index=False, sep='\t')
 
