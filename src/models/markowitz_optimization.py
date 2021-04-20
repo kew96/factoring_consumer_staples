@@ -1,7 +1,13 @@
+import sys
+
 import numpy as np
 import cvxpy as cp
 import pandas as pd
-from tqdm import trange
+
+if 'ipykernel' in sys.modules:
+    from tqdm.notebook import trange
+else:
+    from tqdm import trange
 
 
 class Markowitz:
