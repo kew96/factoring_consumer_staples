@@ -19,14 +19,30 @@ book_ratios = pd.read_table(DATA_PATH.joinpath('raw', 'prices_assets_liabilities
 book_ratios['book_value'] = (book_ratios.atq - book_ratios.ltq) * 1_000_000
 
 shares = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
-                       usecols=['datadate', 'tic', 'cshoc'], parse_dates=['datadate'])
+                       usecols=['date', 'TICKER', 'SHROUT'], parse_dates=['date'])
+shares.columns = ['datadate', 'tic', 'cshoc']
+shares = shares.dropna(subset=['tic'])
+
 book_ratios = book_ratios.merge(shares, on=['datadate', 'tic'], how='left')
+
+nan_shares = list()
+for entry in book_ratios.cshoc:
+    try:
+        nan_shares.append(float(entry) * 1_000)
+    except ValueError:
+        nan_shares.append(np.nan)
+
+book_ratios.cshoc = nan_shares
 
 # Imputes missing shares at the end of a period by taking the most recent value
 
 def fix_missing_shares(df):
+    bad_tickers = list()
     for ticker in tqdm(df.tic.unique(), desc='tickers'):
         subset = shares[shares.tic==ticker].dropna(subset=['cshoc'])
+        if subset.empty:
+            bad_tickers.append(ticker)
+            continue
         for row in tqdm(df[df.tic==ticker].itertuples(), desc=ticker, leave=False):
             if np.isnan(row.cshoc):
                 val = np.nan
@@ -48,7 +64,7 @@ def fix_missing_shares(df):
                             vals_array = subset[subset.datadate==dt].cshoc.values
                             val = vals_array[0] if len(vals_array) else np.nan
                 df.loc[row.Index, 'cshoc'] = val
-    return df
+    return df[~df.tic.isin(bad_tickers)]
 
 book_ratios = fix_missing_shares(book_ratios)
 
@@ -151,6 +167,7 @@ for ticker in book_ratios.tic.unique():
         little_data.append(ticker)
 
 book_ratios = book_ratios[~book_ratios.tic.isin(little_data)]
+book_ratios = book_ratios.dropna(subset=['ptb'])
 
 book_ratios.to_csv(DATA_PATH.joinpath('interim', 'book_ratios.txt'), index=False, sep='\t')
 

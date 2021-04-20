@@ -12,10 +12,25 @@ DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 
 market_values = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
-                              dtype={'cusip': str, 'tpci': str}, parse_dates=['datadate'])
+                              parse_dates=['date'], usecols=['TICKER', 'date', 'COMNAM', 'PRC', 'SHROUT'])
+
+market_values.columns = ['datadate', 'tic', 'conm', 'prccd', 'cshoc']
+
+market_values = market_values.dropna(subset=['tic'])
+
+nan_shares = list()
+for entry in market_values.cshoc:
+    try:
+        nan_shares.append(float(entry) * 1_000)
+    except ValueError:
+        nan_shares.append(np.nan)
+
+market_values.cshoc = nan_shares
 
 # Calculating daily market value
 market_values['mkvaltq'] = market_values.prccd * market_values.cshoc
+
+pd.options.display.max_columns = None
 
 # Finding all tickers with missing values
 def get_bad_data(values):
@@ -39,11 +54,13 @@ def impute_one_period(data):
         diff = data.iloc[2] - data.iloc[1] # assume constant growth
         return data.iloc[1] - diff
     elif np.isnan(data.iloc[1]): # If the middle value is missing
+        print(data)
         return (data.iloc[0] + data.iloc[2]) / 2 # take average of previous and next period
     else: # If the last period is missing
         diff = data.iloc[1] - data.iloc[0] # assume constant growth
         return data.iloc[1] + diff
 
+market_values = market_values.sort_values(['tic', 'datadate']).reset_index(drop=True)
 
 for elem in bad_data.items():
     subset = market_values[market_values.tic == elem[0]]
@@ -54,10 +71,14 @@ for elem in bad_data.items():
             elif ind == subset.index[-1]:
                 three_set = subset.loc[ind-2:ind, 'mkvaltq']
             else:
-                three_set = subset.loc[ind-1:ind+1, 'mkvaltq']
+                three_set = subset.loc[ind-2:ind+1, 'mkvaltq']
             if np.sum(np.isnan(three_set)) == 1:
-                new_value = impute_one_period(three_set)
-                subset.loc[ind, 'mkvaltq'] = new_value
+                try:
+                    new_value = impute_one_period(three_set)
+                    subset.loc[ind, 'mkvaltq'] = new_value
+                except:
+                    print(subset.info())
+                    raise Exception
     market_values[market_values.tic == elem[0]] = subset
 
 # Reduces data to only months that are quarter end and that have a date after the 25th

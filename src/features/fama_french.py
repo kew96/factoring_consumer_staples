@@ -15,6 +15,8 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         if not data:
             data = self.__DATA_PATH.joinpath('processed', 'three_factor_model.txt')
         self.__data = pd.read_table(data, parse_dates=['datadate'])
+        pd.options.display.max_columns = None
+        print(self.__data.head())
         self._generate_smb()
         self._generate_hml()
         self._generate_distinct_factors()
@@ -60,6 +62,10 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             growth_rets = growth.chng.mean()
 
             factor = val_rets - growth_rets
+            if np.isnan(factor):
+                pd.options.display.max_rows = None
+                print(temp)
+                raise Exception
 
             hml.append(factor)
 
@@ -85,6 +91,10 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
             denom = sum(range(len(temp_df)))
             weights = [val / denom for val in range(1, len(temp_df) + 1)]
+
+            print(y)
+
+            print(X)
 
             model = WLS(y, X, weights=weights).fit()
 
@@ -147,5 +157,5 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
 if __name__ == '__main__':
     tfm = ThreeFactorModel()
-    pd.options.display.max_columns = None
-    print(tfm._ThreeFactorModel__data)
+    pd.options.display.max_rows = None
+    print(tfm.max_sharpe_portfolios())

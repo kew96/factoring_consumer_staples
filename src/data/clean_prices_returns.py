@@ -17,30 +17,31 @@ DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 consumer_staples = pd.read_csv(DATA_PATH.joinpath('raw', 'sp500_consumer_staples.csv'))
 t_bill = pd.read_csv(DATA_PATH.joinpath('raw', '3_month_t_bill.csv'))
 prices = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
-                       parse_dates=['datadate'], usecols=['tic', 'datadate', 'conm', 'prccd', 'cshoc'],
-                       index_col=['tic', 'datadate'])
+                       parse_dates=['date'], usecols=['TICKER', 'date', 'COMNAM', 'PRC', 'SHROUT', 'RET'])
+
+prices.columns = ['datadate', 'tic', 'conm', 'prccd', 'chng', 'cshoc']
+
+nan_prices = list()
+for entry in prices.cshoc:
+    try:
+        nan_prices.append(float(entry)*1_000)
+    except ValueError:
+        nan_prices.append(np.nan)
+
+prices.cshoc = nan_prices
+
+nan_chng = list()
+for entry in prices.chng:
+    try:
+        nan_chng.append(float(entry)*1_000)
+    except ValueError:
+        nan_chng.append(np.nan)
+
+prices.chng = nan_chng
+
+prices = prices.set_index(['tic', 'datadate'])
 
 num_tickers = len(prices.index.get_level_values('tic').unique())
-
-# Creates dict to be turned into DataFrame
-
-final_shares_outstanding_dict = {'tic': [0] * num_tickers, 'final': [0] * num_tickers}
-
-# Retrieves the latest number of shares outstanding to be used to adjust historical share prices
-
-for ind, ticker in enumerate(prices.index.get_level_values('tic').unique()):
-    subset = prices.loc[ticker]
-    last_day = subset.index.max()
-    final_shares_outstanding_dict['tic'][ind] = ticker
-    final_shares_outstanding_dict['final'][ind] = subset.loc[last_day, 'cshoc']
-
-final_shares_outstanding = pd.DataFrame(final_shares_outstanding_dict)
-
-# Scales historical prices to be in terms of final, total outstanding shares
-
-prices = prices.join(final_shares_outstanding.set_index('tic'))
-prices['scale'] = prices.cshoc / prices.final
-prices['prccd'] = prices.prccd * prices.scale
 
 # Finds the latest date available for each quarter, out of all assets
 
@@ -52,7 +53,8 @@ for year in range(2000, 2021):
             last_day = last_day - relativedelta(days=1)
         good_dates.append(last_day)
 
-prices = prices.loc[pd.IndexSlice[:, good_dates], ['conm', 'prccd']]
+prices = prices.loc[pd.IndexSlice[:, good_dates], ['conm', 'prccd', 'chng']]
+
 prices = prices.rename({'prccd': 'prccm'}, axis=1)
 
 # Converts month and year combos to datetimes
@@ -81,10 +83,10 @@ consumer_staples = consumer_staples.set_index('Date').sort_index()
 
 def get_bad_data(prices):
     bad_data = list()
-    for ticker in prices.index.get_level_values(1).unique():
-        subset = prices.loc[pd.IndexSlice[:, ticker], :]
-        current = 'na' if np.isnan(subset.prccm.iloc[0]) else 'val'
-        for v in subset.prccm[1:]:
+    for ticker in prices.index.get_level_values('tic').unique():
+        subset = prices.loc[pd.IndexSlice[ticker, :], :]
+        current = 'na' if np.isnan(subset.chng.iloc[0]) else 'val'
+        for v in subset.chng.iloc[1:]:
             if not np.isnan(v):
                 current = 'val'
             elif current == 'val' and np.isnan(v):
@@ -110,21 +112,21 @@ def impute_two_periods(data):
     # Individual case handled later
 
 for elem in bad_data.items():
-    subset = prices.loc[pd.IndexSlice[:, elem[0][0]], :]
-    for ind, (value1, value2) in enumerate(zip(subset.prccm[:-1], subset.prccm[1:])):
+    subset = prices.loc[pd.IndexSlice[elem[0][0], :], :]
+    for ind, (value1, value2) in enumerate(zip(subset.chng[:-1], subset.chng[1:])):
         if np.sum(np.isnan([value1, value2])) == 2:
             if ind == 0:
-                data = subset.iloc[ind:ind+4].prccm
-            elif ind == len(subset)-3:
-                data = subset.iloc[ind-4:].prccm
+                data = subset.iloc[ind:ind+4].chng
+            elif ind == len(subset)-2:
+                data = subset.iloc[ind-4:].chng
             else:
-                data = subset.iloc[ind-1:ind+3].prccm
+                data = subset.iloc[ind-1:ind+3].chng
             if np.sum(np.isnan(data)) > 2:
                 continue
             else:
                 new_vals = impute_two_periods(data)
-            subset.iloc[ind:ind+2].prccm = new_vals
-    prices.loc[pd.IndexSlice[:, elem[0]], :] = subset
+            subset.iloc[ind:ind+2].chng = new_vals
+    prices.loc[pd.IndexSlice[elem[0], :], :] = subset
 
 # Imputes one period of missing data, assuming linearity
 
@@ -139,28 +141,19 @@ def impute_one_period(data):
         return data.iloc[1] + diff
 
 for elem in bad_data.items():
-    subset = prices.loc[pd.IndexSlice[:, elem[0][0]], :]
-    for ind, value in enumerate(subset.prccm):
+    subset = prices.loc[pd.IndexSlice[elem[0][0], :], :]
+    for ind, value in enumerate(subset.chng):
         if np.isnan(value):
             if ind == 0:
-                three_set = subset.iloc[ind:ind+3].prccm
+                three_set = subset.iloc[ind:ind+3].chng
             elif ind == len(subset)-1:
-                three_set = subset.iloc[ind-2:ind].prccm
+                three_set = subset.iloc[ind-2:ind].chng
             else:
-                three_set = subset.iloc[ind-1:ind+2].prccm
+                three_set = subset.iloc[ind-1:ind+2].chng
             if np.sum(np.isnan(three_set)) == 1:
                 new_value = impute_one_period(three_set)
                 subset.iloc[ind] = subset.iloc[ind].fillna(new_value)
-    prices.loc[pd.IndexSlice[:, elem[0][0]], :] = subset
-
-# Calculates the percent change for each asset from the previous period
-
-prices['chng'] = np.nan
-
-for ticker in prices.index.get_level_values('tic').unique():
-    subset = prices.loc[pd.IndexSlice[ticker, :], :]
-    subset.chng = subset.prccm.pct_change()
-    prices.loc[pd.IndexSlice[ticker, :], 'chng'] = subset.loc[:, 'chng']
+    prices.loc[pd.IndexSlice[elem[0][0], :], :] = subset
 
 # Percent change for consumer staples index
 
