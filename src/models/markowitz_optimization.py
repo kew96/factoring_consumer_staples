@@ -273,7 +273,7 @@ class ThreeFactorMarkowitz(Markowitz):
         total_returns = list()
         years = list()
         months = list()
-        for year in trange(start_year, end_year+1, desc='Year'):
+        for year in trange(start_year, end_year+1, desc='Year', leave=False):
             for quarter in trange(1, 5, desc='Quarter', leave=False):
                 if year == start_year and quarter == 1:
                     # We have no prior data to get the expected return for the current period
