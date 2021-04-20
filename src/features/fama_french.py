@@ -72,9 +72,8 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             # Iterate through each available date
             temp = self.__raw_data[self.__raw_data.datadate == date][['chng', 'mkvaltq']]
 
-            # Find top and bottom decile based on the market capitalization
-            ten = self.__raw_data.mkvaltq.quantile(0.1)
-            ninety = self.__raw_data.mkvaltq.quantile(0.9)
+            ten = temp.mkvaltq.quantile(0.1)
+            ninety = temp.mkvaltq.quantile(0.9)
 
             # Identifies the assets in these groups and calculate the average returns
             small = temp[temp.mkvaltq < ten]
@@ -98,9 +97,8 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             # Iterate through each available date
             temp = self.__raw_data[self.__raw_data.datadate == date][['chng', 'ptb']]
 
-            # Find top and bottom decile based on the price-to-book ratio
-            ten = self.__raw_data.ptb.quantile(0.1)
-            ninety = self.__raw_data.ptb.quantile(0.9)
+            ten = temp.ptb.quantile(0.1)
+            ninety = temp.ptb.quantile(0.9)
 
             # Identifies the assets in these groups and calculate the average returns
             value = temp[temp.ptb < ten]
