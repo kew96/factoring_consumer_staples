@@ -11,7 +11,7 @@ from src.models.markowitz_optimization import ThreeFactorMarkowitz
 class ThreeFactorModel(ThreeFactorMarkowitz):
     """
     The overarching model for the Fama-French Three-Factor model that performs factor calculations, portfolio
-    optimization, and backtesting. Inherits from ThreeFactorMarkowitz
+    optimization, and back testing. Inherits from ThreeFactorMarkowitz
 
     Attributes
     ----------
