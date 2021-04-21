@@ -1,7 +1,13 @@
+import sys
+
 import numpy as np
 import cvxpy as cp
 import pandas as pd
-from tqdm import trange
+
+if 'ipykernel' in sys.modules:
+    from tqdm.notebook import trange
+else:
+    from tqdm import trange
 
 
 class Markowitz:
@@ -215,6 +221,7 @@ class ThreeFactorMarkowitz(Markowitz):
                         self._expected_return.datadate.dt.month == next_month)
             ]
         sorted_date_subset = sorted_date_subset[sorted_date_subset.tic.isin(list(next_subset.tic))]
+        sorted_date_subset = sorted_date_subset.drop_duplicates(subset=['tic'])
         sub_universe = sorted_date_subset.iloc[list(range(total_size//2))+list(range(-total_size//2, 0))]
         return sub_universe.drop('datadate', axis=1).set_index('tic')
 
@@ -267,8 +274,8 @@ class ThreeFactorMarkowitz(Markowitz):
         total_returns = list()
         years = list()
         months = list()
-        for year in trange(start_year, end_year+1, desc='Year'):
-            for quarter in trange(1, 5, desc='Quarter', leave=False):
+        for year in trange(start_year, end_year+1, desc='Year', leave=False):
+            for quarter in trange(1, 5, desc=f'{year}', leave=False):
                 if year == start_year and quarter == 1:
                     # We have no prior data to get the expected return for the current period
                     continue
@@ -278,7 +285,8 @@ class ThreeFactorMarkowitz(Markowitz):
 
                 # Retrieve the actual return for the current period
                 actual_returns = self.__raw_data[(self.__raw_data.datadate.dt.year == year) & (
-                        self.__raw_data.datadate.dt.month == quarter * 3)].set_index('tic')
+                        self.__raw_data.datadate.dt.month == quarter * 3)]
+                actual_returns = actual_returns.drop_duplicates(subset=['tic']).set_index('tic')
 
                 # Calculate the optimal weights given a universe
                 wgts = self.max_one_period_sharpe(universe, num_points,
