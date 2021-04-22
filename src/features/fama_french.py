@@ -204,5 +204,5 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             cov = np.dot(diff.reshape((3,1)), diff.reshape((1,3)))
             F += w1 * cov
 
-        V = np.dot(np.dot(self.factor_loadings.values, F), self.factor_loadings.values.T)
+        V = np.dot(np.dot(self.factor_loadings.values, F), self.factor_loadings.values.T) + self.delta
         return pd.DataFrame(V, columns=self.factor_loadings.index, index=self.factor_loadings.index)
