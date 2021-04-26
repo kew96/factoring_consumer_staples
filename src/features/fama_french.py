@@ -155,7 +155,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             # Calculate the alpha for each asset
             alpha = 0
             for y_val, w, pred in zip(y, weights, predictions):
-                alpha += y_val - pred
+                alpha += (y_val - pred) * w
 
             # The error in each prediction compared to the actual excess return
             errors = list()
