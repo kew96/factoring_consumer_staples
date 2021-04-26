@@ -283,9 +283,3 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
         V = np.dot(np.dot(loadings.values, F), loadings.values.T) + deltas.values
         return pd.DataFrame(V, columns=loadings.index, index=loadings.index)
-
-
-if __name__ == '__main__':
-    pd.options.display.max_columns = None
-    tfm = ThreeFactorModel()
-    # print(tfm._ThreeFactorModel__raw_data)
