@@ -59,10 +59,10 @@ class Markowitz:
         # Must go long the first half assets and short the last half assets
         half = len(expected_return) // 2
         long_short = [
-            weights[:half] <= 1, # long
+            weights[:half] <= 0.5, # long
             weights[:half] >= 0,
             weights[half:] <= 0, # short
-            weights[half:] >= -1
+            weights[half:] >= -0.5
         ]
 
         # Aggregate constraints into one list
