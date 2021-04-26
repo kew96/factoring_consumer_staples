@@ -116,7 +116,27 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         # Modifies the base DataFrame
         self.__raw_data = self.__raw_data.merge(HML, how='left', on='datadate').drop_duplicates()
 
-    def _generate_distinct_factors(self):
+    @staticmethod
+    def __check_dir(path):
+        if not path.exists():
+            path.mkdir()
+
+    def _generate_distinct_factors(self, start_year=2005):
+
+        MODEL_DATA = self.__DATA_PATH.joinpath('processed', 'factor_data')
+        FACTOR_LOADINGS = MODEL_DATA.joinpath('factor_loadings')
+        ALPHAS = MODEL_DATA.joinpath('alphas')
+        P_VALUES = MODEL_DATA.joinpath('p_values')
+        DELTAS = MODEL_DATA.joinpath('deltas')
+        EXPECTED_RETURN = MODEL_DATA.joinpath('expected_returns')
+
+        self.__check_dir(MODEL_DATA)
+        self.__check_dir(FACTOR_LOADINGS)
+        self.__check_dir(ALPHAS)
+        self.__check_dir(P_VALUES)
+        self.__check_dir(DELTAS)
+        self.__check_dir(EXPECTED_RETURN)
+
         alphas = list()
         beta_mkt_exc = list()
         beta_smb = list()
@@ -127,44 +147,47 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         r2 = list()
         delta_diag = list()
 
-        for ticker in self.__raw_data.tic.unique():
+        for date in self.__raw_data.datadate[self.__raw_data.datadate.dt.year >= start_year].unique():
 
-            # Iterate through each asset, individually
-            temp_df = self.__raw_data[self.__raw_data.tic == ticker]
+            for ticker in self.__raw_data.tic.unique():
 
-            # Separate data into the dependent and independent variables and convert to NumPy arrays
-            y = temp_df.chng.values - temp_df.Price_tb.values
-            X = temp_df[['mkt_excess', 'smb', 'hml']].values
+                # Iterate through each asset, individually
+                ticker_date_df = self.__raw_data[(self.__raw_data.tic == ticker) &
+                                                 (self.__raw_data.datadate < date)]
 
-            # Create list of weights to use for weighted least squares so that older data points carry less weight
-            denom = sum(range(len(temp_df)))
-            weights = [val / denom for val in range(1, len(temp_df) + 1)]
+                # Separate data into the dependent and independent variables and convert to NumPy arrays
+                y = ticker_date_df.chng.values - ticker_date_df.Price_tb.values
+                X = ticker_date_df[['mkt_excess', 'smb', 'hml']].values
 
-            # Actual weighted least squares model
-            model = WLS(y, X, weights=weights).fit()
+                # Create list of weights to use for weighted least squares so that older data points carry less weight
+                denom = sum(range(len(ticker_date_df)))
+                weights = [val / denom for val in range(1, len(ticker_date_df) + 1)]
 
-            # Calculate the predicted returns for each asset
-            predictions = list()
-            for row in X:
-                predicted = 0
-                for x_val, param_val in zip(row, model.params):
-                    # Sum of the factor return * the factor loading
-                    predicted += x_val * param_val
-                predictions.append(predicted)
+                # Actual weighted least squares model
+                model = WLS(y, X, weights=weights).fit()
 
-            # Calculate the alpha for each asset
-            alpha = 0
-            for y_val, w, pred in zip(y, weights, predictions):
-                alpha += y_val - pred
+                # Calculate the predicted returns for each asset
+                predictions = list()
+                for row in X:
+                    predicted = 0
+                    for x_val, param_val in zip(row, model.params):
+                        # Sum of the factor return * the factor loading
+                        predicted += x_val * param_val
+                    predictions.append(predicted)
 
-            # The error in each prediction compared to the actual excess return
-            errors = list()
-            for pred, y_val in zip(predictions, y):
-                error = y_val - alpha - pred
-                errors.append(error)
+                # Calculate the alpha for each asset
+                alpha = 0
+                for y_val, w, pred in zip(y, weights, predictions):
+                    alpha += (y_val - pred) * w
 
-            # Calculate the squared error
-            squared_error = sum([w * error ** 2 for w, error in zip(weights, errors)])
+                # The error in each prediction compared to the actual excess return
+                errors = list()
+                for pred, y_val in zip(predictions, y):
+                    error = y_val - alpha - pred
+                    errors.append(error)
+
+                # Calculate the squared error
+                squared_error = sum([w * error ** 2 for w, error in zip(weights, errors)])
 
             alphas.append(alpha)
             beta_mkt_exc.append(model.params[0])
@@ -176,18 +199,15 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             r2.append(model.rsquared)
             delta_diag.append(squared_error)
 
-        return (
-            pd.Series(alphas,
-                      index=self.__raw_data.tic.unique()).drop_duplicates(),
-            pd.DataFrame(np.diagflat(delta_diag), columns=self.__raw_data.tic.unique(),
-                         index=self.__raw_data.tic.unique()).drop_duplicates(),
-            pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
-                         index=self.__raw_data.tic.unique()).drop_duplicates(),
-            pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
-                         index=self.__raw_data.tic.unique()).drop_duplicates()
-        )
+            alpha = pd.Series(alphas, index=self.__raw_data.tic.unique()).drop_duplicates()
+            delta = pd.DataFrame(np.diagflat(delta_diag), columns=self.__raw_data.tic.unique(),
+                                 index=self.__raw_data.tic.unique()).drop_duplicates()
+            loadings = pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
+                                    index=self.__raw_data.tic.unique()).drop_duplicates()
+            p_values = pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
+                                    index=self.__raw_data.tic.unique()).drop_duplicates()
 
-    def _generate_factor_covariance(self):
+    def _generate_factor_covariance(self): # TODO: Update rolling calculations
         f = self.__raw_data[self.__raw_data.tic == self.__raw_data.tic.mode()[0]][
             ['datadate', 'mkt_excess', 'smb', 'hml']
         ]
