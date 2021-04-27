@@ -57,13 +57,18 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         self._generate_smb()
         self._generate_hml()
         FACTOR_DATA_PATH = self.__DATA_PATH.joinpath('processed', 'factor_data')
-        if any(FACTOR_DATA_PATH.joinpath('covariance_matrices')) or any(FACTOR_DATA_PATH.joinpath('expected_returns')):
-            ans = input('Would you like to generate the required data? (y/n):')
+
+        if not FACTOR_DATA_PATH.joinpath('covariance_matrices').exists() or \
+            not FACTOR_DATA_PATH.joinpath('expected_returns').exists() or \
+            not any(FACTOR_DATA_PATH.joinpath('covariance_matrices').iterdir()) or \
+            not any(FACTOR_DATA_PATH.joinpath('expected_returns').iterdir()):
+            ans = input('Would you like to generate the required data? (y/n): ')
             if ans.lower() == 'y':
+                print('Generating data! (This may take a bit.)')
                 self._generate_distinct_factors()
             else:
                 raise FileNotFoundError('Please add required data to data/factor_data/')
-        # super().__init__(self.__raw_data, self.alphas, self.factor_loadings, self.sigma)
+        ThreeFactorMarkowitz.__init__(self, self.__raw_data)
 
     @property
     def data(self):
@@ -217,14 +222,14 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                 r2.append(model.rsquared)
                 delta_diag.append(squared_error)
 
-            alpha = pd.Series(alphas, index=tickers).drop_duplicates()
+            alpha = pd.Series(alphas, index=tickers).drop_duplicates().dropna()
             delta = pd.DataFrame(np.diagflat(delta_diag), columns=tickers,
-                                 index=tickers).drop_duplicates()
+                                 index=tickers).drop_duplicates().dropna()
             loadings = pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
-                                    index=tickers).drop_duplicates()
+                                    index=tickers).drop_duplicates().dropna()
             p_values = pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
-                                    index=tickers).drop_duplicates()
-            expected_return = self.__expected_returns(date, loadings, alpha).drop_duplicates()
+                                    index=tickers).drop_duplicates().dropna()
+            expected_return = self.__expected_returns(date, loadings, alpha).drop_duplicates().dropna()
             covariance_matrix = self.__factor_covariance(date, loadings, delta)
 
             date_str = '.'.join(np.datetime_as_string(date).split('-')[:2]) + '.txt'
@@ -283,3 +288,10 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
         V = np.dot(np.dot(loadings.values, F), loadings.values.T) + deltas.values
         return pd.DataFrame(V, columns=loadings.index, index=loadings.index)
+
+
+if __name__ == '__main__':
+    pd.options.display.max_columns = None
+    pd.options.display.max_rows = None
+    tfm = ThreeFactorModel()
+    print(tfm.max_sharpe_portfolios(start_year=2005, end_year=2010))
