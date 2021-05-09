@@ -45,7 +45,7 @@ pr_br_mv = pr_br.merge(market_values, how='inner', on=['temp_date', 'tic'])
 
 pr_br_mv = pr_br_mv.drop('temp_date', axis=1)
 
-# Ensures that each asset has 5 data points so that the rows of factors are linearly separable and there is a final
+# Ensures that each asset has 4 data points so that the rows of factors are linearly separable and there is a final
 # period to evaluate performance
 
 little_data = list()
