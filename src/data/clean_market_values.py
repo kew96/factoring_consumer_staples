@@ -30,8 +30,6 @@ market_values.cshoc = nan_shares
 # Calculating daily market value
 market_values['mkvaltq'] = market_values.prccd * market_values.cshoc
 
-pd.options.display.max_columns = None
-
 # Finding all tickers with missing values
 def get_bad_data(values):
     tickers = list()
