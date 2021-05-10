@@ -67,8 +67,7 @@ class Markowitz:
 
         return {'excess_return': total_return.value[0], 'weights': weights.value}
 
-    def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3,
-                              return_sharpe=False):
+    def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3):
         """
         Finds the weights of the portfolio that correspond to the maximum Sharpe ratio
 
@@ -90,11 +89,6 @@ class Markowitz:
         max_variance: int
             The minimum variance to start searching for the maximum Sharpe ratio portfolio.
             Default: 3
-            * Keyword argument only
-        return_sharpe: bool
-            If True, will include the Sharpe ratio of the portfolio for the given weights. Includes this as a column
-            in the DataFrame, resulting in a column with all of the same value.
-            Default: False
             * Keyword argument only
 
         Returns
@@ -126,13 +120,7 @@ class Markowitz:
         max_sharpe_ind = np.argmax(sharpe_ratio)
 
         # Return the weights associated with the max sharpe ratio portfolio
-        if return_sharpe:
-            return pd.DataFrame({
-                'weight': all_weights[max_sharpe_ind],
-                'sharpe': np.repeat(sharpe_ratio.max(), len(all_weights[max_sharpe_ind]))
-            }, index=expected_return.index)
-        else:
-            return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['weight'])
+        return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['weight'])
 
 
 class ThreeFactorMarkowitz(Markowitz):
@@ -195,6 +183,18 @@ class ThreeFactorMarkowitz(Markowitz):
             return year-1, 4
         else:
             return year, quarter-1
+
+    def __historical_portfolio_return(self, sub_universe, weights):
+        weighted_returns = sub_universe.merge(weights, left_on='tic', right_index=True)
+        weighted_returns['wgt_return'] = weighted_returns.chng * weighted_returns.weight
+        date_returns = weighted_returns.groupby('datadate').agg({'wgt_return': sum})
+        return date_returns
+
+    def __calculate_sharpe(self, historical_returns):
+        expected_excess = historical_returns.wgt_return.mean()
+        vol = historical_returns.wgt_return.std()
+        return expected_excess / vol
+
 
     def max_sharpe_portfolios(self, start_year=2005, end_year=2020, num_points=300, *, min_variance=0,
                               max_variance=3, universe_size=20, return_sharpe=False):
@@ -259,8 +259,7 @@ class ThreeFactorMarkowitz(Markowitz):
 
                 # Calculate the optimal weights given a universe
                 wgts = self.max_one_period_sharpe(universe, sigma, num_points,
-                                                  min_variance=min_variance, max_variance=max_variance,
-                                                  return_sharpe=return_sharpe)
+                                                  min_variance=min_variance, max_variance=max_variance)
 
                 # Simply multiply the expected return for each asset by the assigned weight and sum over all assets
                 expected_return = sum(universe.ret.values * wgts.weight.values)
@@ -270,11 +269,23 @@ class ThreeFactorMarkowitz(Markowitz):
                 for ticker, w in zip(universe.index, wgts.weight):
                     ret = actual_returns.loc[ticker, 'chng']
                     total_return += ret * w
+                if return_sharpe:
+                    # Subsets data to get historical data
+                    historical_universe = self.__raw_data[(self.__raw_data.tic.isin(universe.index)) &
+                                                          (self.__raw_data.datadate < f'{year}-{quarter*3}-1')
+                                                          ][['tic', 'datadate', 'chng']]
+
+                    # Finds the historical returns given the current portfolio weights
+                    historical_returns = self.__historical_portfolio_return(historical_universe, wgts)
+
+                    sharpe_ratio = self.__calculate_sharpe(historical_returns)
+                    sharpe.append(sharpe_ratio)
+
+
                 years.append(year)
                 months.append(quarter * 3)
                 total_returns.append(total_return)
                 expected_returns.append(expected_return)
-                sharpe.append(wgts.sharpe.values[0])
                 weights.append(wgts)
         if return_sharpe:
             return pd.DataFrame({
