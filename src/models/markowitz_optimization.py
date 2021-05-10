@@ -67,7 +67,8 @@ class Markowitz:
 
         return {'excess_return': total_return.value[0], 'weights': weights.value}
 
-    def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3):
+    def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3,
+                              return_sharpe=False):
         """
         Finds the weights of the portfolio that correspond to the maximum Sharpe ratio
 
@@ -89,6 +90,11 @@ class Markowitz:
         max_variance: int
             The minimum variance to start searching for the maximum Sharpe ratio portfolio.
             Default: 3
+            * Keyword argument only
+        return_sharpe: bool
+            If True, will include the Sharpe ratio of the portfolio for the given weights. Includes this as a column
+            in the DataFrame, resulting in a column with all of the same value.
+            Default: False
             * Keyword argument only
 
         Returns
@@ -120,21 +126,18 @@ class Markowitz:
         max_sharpe_ind = np.argmax(sharpe_ratio)
 
         # Return the weights associated with the max sharpe ratio portfolio
-        return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['weight'])
+        if return_sharpe:
+            return pd.DataFrame({
+                'weight': all_weights[max_sharpe_ind],
+                'sharpe': np.repeat(sharpe_ratio.max(), len(all_weights[max_sharpe_ind]))
+            }, index=expected_return.index)
+        else:
+            return pd.DataFrame(all_weights[max_sharpe_ind], index=expected_return.index, columns=['weight'])
 
 
 class ThreeFactorMarkowitz(Markowitz):
     """
     An extension of the class Markowitz that is focused on optimizing three-factor models.
-
-    Attributes
-    ----------
-    alphas: pandas.Series
-        The alphas of the assets based on the three-factor model.
-    factor_loadings: pandas.DataFrame
-        The factor loadings of each asset. Uses the tickers as the index.
-    sigma: pandas.DataFrame
-        An n x n DataFrame that represents the covariance matrix.
 
     Methods
     -------
@@ -194,7 +197,7 @@ class ThreeFactorMarkowitz(Markowitz):
             return year, quarter-1
 
     def max_sharpe_portfolios(self, start_year=2005, end_year=2020, num_points=300, *, min_variance=0,
-                              max_variance=3, universe_size=20):
+                              max_variance=3, universe_size=20, return_sharpe=False):
         """
         Calculates the realized return for each quarter from start_year to end_year based off expected asset returns
         from previous quarter. Utilizes methods from the class Markowitz to find the optimal weights for the
@@ -223,6 +226,10 @@ class ThreeFactorMarkowitz(Markowitz):
             The total assets in the universe. Must be an even number.
             Default: 20
             * Keyword argument only
+        return_sharpe: bool
+            If True, will include the Sharpe ratio of the portfolio for the given time period.
+            Default: False
+            * Keyword argument only
 
         Returns
         -------
@@ -234,6 +241,7 @@ class ThreeFactorMarkowitz(Markowitz):
         weights = list()
         total_returns = list()
         expected_returns = list()
+        sharpe = list()
         years = list()
         months = list()
         for year in trange(start_year, end_year+1, desc='Year', leave=False):
@@ -251,7 +259,8 @@ class ThreeFactorMarkowitz(Markowitz):
 
                 # Calculate the optimal weights given a universe
                 wgts = self.max_one_period_sharpe(universe, sigma, num_points,
-                                                  min_variance=min_variance, max_variance=max_variance)
+                                                  min_variance=min_variance, max_variance=max_variance,
+                                                  return_sharpe=return_sharpe)
 
                 # Simply multiply the expected return for each asset by the assigned weight and sum over all assets
                 expected_return = sum(universe.ret.values * wgts.weight.values)
@@ -265,7 +274,14 @@ class ThreeFactorMarkowitz(Markowitz):
                 months.append(quarter * 3)
                 total_returns.append(total_return)
                 expected_returns.append(expected_return)
+                sharpe.append(wgts.sharpe.values[0])
                 weights.append(wgts)
-        return pd.DataFrame({
-            'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns
-        }).set_index(['year', 'month'])
+        if return_sharpe:
+            return pd.DataFrame({
+                'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns,
+                'sharpe': sharpe
+            }).set_index(['year', 'month'])
+        else:
+            return pd.DataFrame({
+                'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns
+            }).set_index(['year', 'month'])
