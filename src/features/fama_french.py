@@ -179,11 +179,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
                 # Create list of weights to use for weighted least squares so that older data points carry less weight
                 denom = sum(range(len(ticker_date_df)))
-                try:
-                    weights = [val / denom for val in range(1, len(ticker_date_df) + 1)]
-                except:
-                    print(ticker_date_df)
-                    raise Exception
+                weights = [val / denom for val in range(1, len(ticker_date_df) + 1)]
 
                 # Actual weighted least squares model
                 model = WLS(y, X, weights=weights).fit()
@@ -271,7 +267,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
 
     def __factor_covariance(self, date, loadings, deltas):
         date_subset = self.__raw_data[self.__raw_data.datadate == date]
-        f = date_subset[date_subset.tic == date_subset.tic.mode()[0]][
+        f = date_subset[date_subset.datadate.isin(date_subset.datadate.unique())][
             ['datadate', 'mkt_excess', 'smb', 'hml']]
         denom = sum(range(len(f)))
         weights = [val / denom for val in range(1, len(f) + 1)]
