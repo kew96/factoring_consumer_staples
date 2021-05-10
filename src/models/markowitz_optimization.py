@@ -233,6 +233,7 @@ class ThreeFactorMarkowitz(Markowitz):
         """
         weights = list()
         total_returns = list()
+        expected_returns = list()
         years = list()
         months = list()
         for year in trange(start_year, end_year+1, desc='Year', leave=False):
@@ -252,6 +253,9 @@ class ThreeFactorMarkowitz(Markowitz):
                 wgts = self.max_one_period_sharpe(universe, sigma, num_points,
                                                   min_variance=min_variance, max_variance=max_variance)
 
+                # Simply multiply the expected return for each asset by the assigned weight and sum over all assets
+                expected_return = sum(universe.ret.values * wgts.weight.values)
+
                 # Calculate realized return, weight * actual return
                 total_return = 0
                 for ticker, w in zip(universe.index, wgts.weight):
@@ -260,5 +264,8 @@ class ThreeFactorMarkowitz(Markowitz):
                 years.append(year)
                 months.append(quarter * 3)
                 total_returns.append(total_return)
+                expected_returns.append(expected_return)
                 weights.append(wgts)
-        return pd.DataFrame({'year': years, 'month': months, 'ret': total_returns}).set_index(['year', 'month'])
+        return pd.DataFrame({
+            'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns
+        }).set_index(['year', 'month'])
