@@ -16,11 +16,6 @@ class Markowitz:
     An implementation of Markowitz Portfolio optimization that ensures you are long the first half assets and short the
     last half assets.
 
-    Attributes
-    ----------
-    sigma: pandas.DataFrame
-        An n x n DataFrame that represents the covariance matrix.
-
     Methods
     -------
     max_one_period_sharpe(expected_return, num_points=300, min_variance=0, max_variance=3)
@@ -30,11 +25,6 @@ class Markowitz:
     def __init__(self):
         """
         Initializes the standard Markowitz portfolio optimization.
-
-        Parameters
-        ----------
-        sigma: pandas.DataFrame
-            An n x n DataFrame that represents the covariance matrix. Uses tickers as both the index and column names.
         """
 
     @staticmethod
@@ -83,11 +73,12 @@ class Markowitz:
 
         Parameters
         ----------
-        sigma
         expected_return: pandas.DataFrame
             The expected return for the next period of the assets with ticker as the index and the expected return
             values column named "expected_return". The first half of assets will have a long position and the last
             half will have a short position.
+        sigma: pandas.DataFrame
+            An n x n DataFrame that represents the covariance matrix. Uses tickers as both the index and column names.
         num_points: int
             The number of points to search over to approximate the maximum Sharpe ratio portfolio.
             Default: 300
@@ -160,18 +151,15 @@ class ThreeFactorMarkowitz(Markowitz):
 
         Parameters
         ----------
-        data: pandas.DataFrame
+        raw_data: pandas.DataFrame
             The overall data for the class. Must include the columns "tic", "datadate", "chng" which corresponds to
             the percent change in that period, "mkt_excess", "smb", and "hml". The last three correspond to the
             expected factor return.
-        alphas: pandas.Series
-            The alphas of the assets based on the three-factor model. These are generated via a weighted least squares
-            regression. Use tickers as the index.
-        factor_loadings: pandas.DataFrame
-            The factor loadings of each asset. Uses the tickers as the index. Column names assume the traditional
-            Fama-French three-factor model and names the columns "mkt_excess", "smb", and "hml" respectively.
-        sigma: pandas.DataFrame
-            An n x n DataFrame that represents the covariance matrix. Uses tickers as both the index and column names.
+
+        data: str
+            Path to the data folder
+            * Optional
+            * Keyword only
         """
         self.__raw_data = raw_data
         if not data:
