@@ -56,10 +56,19 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         self.__raw_data = pd.read_table(data, parse_dates=['datadate'])
         self._generate_smb()
         self._generate_hml()
-        self._generate_distinct_factors()
-        self.alphas, self.delta, self.factor_loadings, self.p_values = self._generate_distinct_factors()
-        self.sigma = self._generate_factor_covariance()
-        super().__init__(self.__raw_data, self.alphas, self.factor_loadings, self.sigma)
+        FACTOR_DATA_PATH = self.__DATA_PATH.joinpath('processed', 'factor_data')
+
+        if not FACTOR_DATA_PATH.joinpath('covariance_matrices').exists() or \
+            not FACTOR_DATA_PATH.joinpath('expected_returns').exists() or \
+            not any(FACTOR_DATA_PATH.joinpath('covariance_matrices').iterdir()) or \
+            not any(FACTOR_DATA_PATH.joinpath('expected_returns').iterdir()):
+            ans = input('Would you like to generate the required data? (y/n): ')
+            if ans.lower() == 'y':
+                print('Generating data! (This may take a bit.)')
+                self._generate_distinct_factors()
+            else:
+                raise FileNotFoundError('Please add required data to data/factor_data/')
+        ThreeFactorMarkowitz.__init__(self, self.__raw_data)
 
     @property
     def data(self):
@@ -116,81 +125,150 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         # Modifies the base DataFrame
         self.__raw_data = self.__raw_data.merge(HML, how='left', on='datadate').drop_duplicates()
 
-    def _generate_distinct_factors(self):
-        alphas = list()
-        beta_mkt_exc = list()
-        beta_smb = list()
-        beta_hml = list()
-        p_mx = list()
-        p_smb = list()
-        p_hml = list()
-        r2 = list()
-        delta_diag = list()
+    @staticmethod
+    def __check_dir(path):
+        if not path.exists():
+            path.mkdir()
 
-        for ticker in self.__raw_data.tic.unique():
+    def _generate_distinct_factors(self, start_year=2005):
 
-            # Iterate through each asset, individually
-            temp_df = self.__raw_data[self.__raw_data.tic == ticker]
+        MODEL_DATA = self.__DATA_PATH.joinpath('processed', 'factor_data')
+        FACTOR_LOADINGS = MODEL_DATA.joinpath('factor_loadings')
+        ALPHAS = MODEL_DATA.joinpath('alphas')
+        P_VALUES = MODEL_DATA.joinpath('p_values')
+        DELTAS = MODEL_DATA.joinpath('deltas')
+        EXPECTED_RETURN = MODEL_DATA.joinpath('expected_returns')
+        COVARIANCE = MODEL_DATA.joinpath('covariance_matrices')
 
-            # Separate data into the dependent and independent variables and convert to NumPy arrays
-            y = temp_df.chng.values - temp_df.Price_tb.values
-            X = temp_df[['mkt_excess', 'smb', 'hml']].values
+        self.__check_dir(MODEL_DATA)
+        self.__check_dir(FACTOR_LOADINGS)
+        self.__check_dir(ALPHAS)
+        self.__check_dir(P_VALUES)
+        self.__check_dir(DELTAS)
+        self.__check_dir(EXPECTED_RETURN)
+        self.__check_dir(COVARIANCE)
 
-            # Create list of weights to use for weighted least squares so that older data points carry less weight
-            denom = sum(range(len(temp_df)))
-            weights = [val / denom for val in range(1, len(temp_df) + 1)]
 
-            # Actual weighted least squares model
-            model = WLS(y, X, weights=weights).fit()
+        for date in self.__raw_data.datadate[self.__raw_data.datadate.dt.year >= start_year].unique():
 
-            # Calculate the predicted returns for each asset
-            predictions = list()
-            for row in X:
-                predicted = 0
-                for x_val, param_val in zip(row, model.params):
-                    # Sum of the factor return * the factor loading
-                    predicted += x_val * param_val
-                predictions.append(predicted)
+            tickers = list()
+            alphas = list()
+            beta_mkt_exc = list()
+            beta_smb = list()
+            beta_hml = list()
+            p_mx = list()
+            p_smb = list()
+            p_hml = list()
+            r2 = list()
+            delta_diag = list()
 
-            # Calculate the alpha for each asset
-            alpha = 0
-            for y_val, w, pred in zip(y, weights, predictions):
-                alpha += (y_val - pred) * w
+            for ticker in self.__raw_data.tic.unique():
+                if ticker in tickers:
+                    continue
 
-            # The error in each prediction compared to the actual excess return
-            errors = list()
-            for pred, y_val in zip(predictions, y):
-                error = y_val - alpha - pred
-                errors.append(error)
+                # Iterate through each asset, individually
+                ticker_date_df = self.__raw_data[(self.__raw_data.tic == ticker) &
+                                                 (self.__raw_data.datadate < date)]
 
-            # Calculate the squared error
-            squared_error = sum([w * error ** 2 for w, error in zip(weights, errors)])
+                if len(ticker_date_df) < 2:
+                    continue
 
-            alphas.append(alpha)
-            beta_mkt_exc.append(model.params[0])
-            beta_smb.append(model.params[1])
-            beta_hml.append(model.params[2])
-            p_mx.append(model.pvalues[0])
-            p_smb.append(model.pvalues[1])
-            p_hml.append(model.pvalues[2])
-            r2.append(model.rsquared)
-            delta_diag.append(squared_error)
+                # Separate data into the dependent and independent variables and convert to NumPy arrays
+                y = ticker_date_df.chng.values - ticker_date_df.Price_tb.values
+                X = ticker_date_df[['mkt_excess', 'smb', 'hml']].values
 
-        return (
-            pd.Series(alphas,
-                      index=self.__raw_data.tic.unique()).drop_duplicates(),
-            pd.DataFrame(np.diagflat(delta_diag), columns=self.__raw_data.tic.unique(),
-                         index=self.__raw_data.tic.unique()).drop_duplicates(),
-            pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
-                         index=self.__raw_data.tic.unique()).drop_duplicates(),
-            pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
-                         index=self.__raw_data.tic.unique()).drop_duplicates()
-        )
+                # Create list of weights to use for weighted least squares so that older data points carry less weight
+                denom = sum(range(len(ticker_date_df)))
+                weights = [val / denom for val in range(1, len(ticker_date_df) + 1)]
 
-    def _generate_factor_covariance(self):
-        f = self.__raw_data[self.__raw_data.tic == self.__raw_data.tic.mode()[0]][
-            ['datadate', 'mkt_excess', 'smb', 'hml']
-        ]
+                # Actual weighted least squares model
+                model = WLS(y, X, weights=weights).fit()
+
+                # Calculate the predicted returns for each asset
+                predictions = list()
+                for row in X:
+                    predicted = 0
+                    for x_val, param_val in zip(row, model.params):
+                        # Sum of the factor return * the factor loading
+                        predicted += x_val * param_val
+                    predictions.append(predicted)
+
+                # Calculate the alpha for each asset
+                alpha = 0
+                for y_val, w, pred in zip(y, weights, predictions):
+                    alpha += (y_val - pred) * w
+
+                # The error in each prediction compared to the actual excess return
+                errors = list()
+                for pred, y_val in zip(predictions, y):
+                    error = y_val - alpha - pred
+                    errors.append(error)
+
+                # Calculate the squared error
+                squared_error = sum([w * error ** 2 for w, error in zip(weights, errors)])
+
+                tickers.append(ticker)
+                alphas.append(alpha)
+                beta_mkt_exc.append(model.params[0])
+                beta_smb.append(model.params[1])
+                beta_hml.append(model.params[2])
+                p_mx.append(model.pvalues[0])
+                p_smb.append(model.pvalues[1])
+                p_hml.append(model.pvalues[2])
+                r2.append(model.rsquared)
+                delta_diag.append(squared_error)
+
+            alpha = pd.Series(alphas, index=tickers).drop_duplicates().dropna()
+            delta = pd.DataFrame(np.diagflat(delta_diag), columns=tickers,
+                                 index=tickers).drop_duplicates().dropna()
+            loadings = pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
+                                    index=tickers).drop_duplicates().dropna()
+            p_values = pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
+                                    index=tickers).drop_duplicates().dropna()
+            expected_return = self.__expected_returns(date, loadings, alpha).drop_duplicates().dropna()
+            covariance_matrix = self.__factor_covariance(date, loadings, delta)
+
+            date_str = '.'.join(np.datetime_as_string(date).split('-')[:2]) + '.txt'
+
+            alpha.to_csv(ALPHAS.joinpath(date_str), sep='\t', header=['alpha'], index_label='tic')
+            delta.to_csv(DELTAS.joinpath(date_str), sep='\t', index_label='tic')
+            loadings.to_csv(FACTOR_LOADINGS.joinpath(date_str), sep='\t', index_label='tic')
+            p_values.to_csv(P_VALUES.joinpath(date_str), sep='\t', index_label='tic')
+            expected_return.to_csv(EXPECTED_RETURN.joinpath(date_str), sep='\t',
+                                                     header=['ret'], index_label='tic')
+            covariance_matrix.to_csv(COVARIANCE.joinpath(date_str), sep='\t', index_label='tic')
+
+    def __expected_returns(self, date, loadings, alphas):
+
+        # Combines the factor loadings, expected factor returns, and alphas
+        subset_factor_returns = self.__raw_data[self.__raw_data.datadate==date][['tic', 'mkt_excess', 'smb', 'hml']]
+        factor_returns_loadings = loadings.reset_index().merge(subset_factor_returns, left_on='index',
+                                                        right_on='tic', how='left', suffixes=('_loading', ''))
+
+        modified_alpha = alphas.reset_index().rename({0: 'alpha'}, axis=1)
+        factor_returns_loadings_alphas = factor_returns_loadings.merge(modified_alpha, left_on='tic',
+                                                                       right_on='index', how='left')
+
+        # Calculates the expected return for each asset from each factor.
+        mkt_excess_return = factor_returns_loadings_alphas.mkt_excess * \
+                            factor_returns_loadings_alphas.mkt_excess_loading
+
+        smb_return = factor_returns_loadings_alphas.smb * factor_returns_loadings_alphas.smb_loading
+
+        hml_return = factor_returns_loadings_alphas.hml * factor_returns_loadings_alphas.hml_loading
+
+        # Combines all expected returns
+        mu = factor_returns_loadings_alphas.alpha + mkt_excess_return + smb_return + hml_return
+
+        expected_return = pd.Series(mu)
+        expected_return.index = factor_returns_loadings_alphas.tic
+
+        return expected_return
+
+    def __factor_covariance(self, date, loadings, deltas):
+        date_subset = self.__raw_data[self.__raw_data.datadate == date]
+        f = date_subset[date_subset.datadate.isin(date_subset.datadate.unique())][
+            ['datadate', 'mkt_excess', 'smb', 'hml']]
         denom = sum(range(len(f)))
         weights = [val / denom for val in range(1, len(f) + 1)]
         F = pd.DataFrame(0, columns=['mkt_excess', 'smb', 'hml'], index=['mkt_excess', 'smb', 'hml'])
@@ -204,5 +282,12 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             cov = np.dot(diff.reshape((3,1)), diff.reshape((1,3)))
             F += w1 * cov
 
-        V = np.dot(np.dot(self.factor_loadings.values, F), self.factor_loadings.values.T) + self.delta
-        return pd.DataFrame(V, columns=self.factor_loadings.index, index=self.factor_loadings.index)
+        V = np.dot(np.dot(loadings.values, F), loadings.values.T) + deltas.values
+        return pd.DataFrame(V, columns=loadings.index, index=loadings.index)
+
+
+if __name__ == '__main__':
+    pd.options.display.max_columns = None
+    pd.options.display.max_rows = None
+    tfm = ThreeFactorModel()
+    print(tfm.max_sharpe_portfolios(start_year=2005, end_year=2010))
