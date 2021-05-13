@@ -248,9 +248,9 @@ class ThreeFactorMarkowitz(Markowitz):
 
         """
         if return_weights:
-            years = list()
-            months = list()
             weights = pd.DataFrame()
+        years = list()
+        months = list()
         total_returns = list()
         expected_returns = list()
         sharpe = list()
