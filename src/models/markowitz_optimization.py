@@ -197,7 +197,7 @@ class ThreeFactorMarkowitz(Markowitz):
 
 
     def max_sharpe_portfolios(self, start_year=2005, end_year=2020, num_points=300, *, min_variance=0,
-                              max_variance=3, universe_size=20, return_sharpe=False):
+                              max_variance=3, universe_size=20, return_sharpe=False, return_weights=False):
         """
         Calculates the realized return for each quarter from start_year to end_year based off expected asset returns
         from previous quarter. Utilizes methods from the class Markowitz to find the optimal weights for the
@@ -230,20 +230,30 @@ class ThreeFactorMarkowitz(Markowitz):
             If True, will include the Sharpe ratio of the portfolio for the given time period.
             Default: False
             * Keyword argument only
+        return_weights: bool
+            If True, will include the weights of the portfolio for the given time period for all assets invested over
+            the complete period. Will result in a second pandas.DataFrame being returned.
+            Default: False
+            * Keyword argument only
 
         Returns
         -------
         realized_returns: pandas.DataFrame
             Has the "year" and "month" that correspond to the respective quarter as the index with the realized
-            return as values. The column is named "ret".
+            and excess returns as values. Can include the Sharpe ratio through optional arguments.
+
+        weights: pandas.DataFrame
+            Has the "year" and "month" that correspond to the respective quarter as the index with tickers of assets
+            invested in as the columns and values as the entries.
 
         """
-        weights = list()
+        if return_weights:
+            years = list()
+            months = list()
+            weights = pd.DataFrame()
         total_returns = list()
         expected_returns = list()
         sharpe = list()
-        years = list()
-        months = list()
         for year in trange(start_year, end_year+1, desc='Year', leave=False):
             for quarter in trange(1, 5, desc=f'{year}', leave=False):
                 if year == 2020 and quarter == 4:
@@ -286,8 +296,25 @@ class ThreeFactorMarkowitz(Markowitz):
                 months.append(quarter * 3)
                 total_returns.append(total_return)
                 expected_returns.append(expected_return)
-                weights.append(wgts)
-        if return_sharpe:
+                if return_weights:
+                    wgt_dict = dict(zip(wgts.index, wgts.weight.values))
+                    weights = weights.append(wgt_dict, ignore_index=True)
+
+        if return_weights:
+            weights['year'] = years
+            weights['month'] = months
+            weights = weights.set_index(['year', 'month'])
+
+        if return_sharpe and return_weights:
+            return (pd.DataFrame({
+                'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns,
+                'sharpe': sharpe
+            }).set_index(['year', 'month']), weights)
+        elif return_weights:
+            return (pd.DataFrame({
+                'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns
+            }).set_index(['year', 'month']), weights)
+        elif return_sharpe:
             return pd.DataFrame({
                 'year': years, 'month': months, 'actual_ret': total_returns, 'expected_ret': expected_returns,
                 'sharpe': sharpe
