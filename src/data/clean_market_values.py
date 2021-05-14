@@ -52,7 +52,6 @@ def impute_one_period(data):
         diff = data.iloc[2] - data.iloc[1] # assume constant growth
         return data.iloc[1] - diff
     elif np.isnan(data.iloc[1]): # If the middle value is missing
-        print(data)
         return (data.iloc[0] + data.iloc[2]) / 2 # take average of previous and next period
     else: # If the last period is missing
         diff = data.iloc[1] - data.iloc[0] # assume constant growth

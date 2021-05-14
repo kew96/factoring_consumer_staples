@@ -59,11 +59,12 @@ class Markowitz:
         # Aggregate constraints into one list
         constraints = long_short
         constraints.append(variance <= max_variance)
-        constraints.append(total_invested == 0)
+        constraints.append(total_invested <= 1e-6)
+        constraints.append(total_invested >= -1e-6)
 
         portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
 
-        portfolio_opt.solve(verbose=False, solver='SCS')
+        portfolio_opt.solve(verbose=False)
 
         return {'excess_return': total_return.value[0], 'weights': weights.value}
 
@@ -108,6 +109,7 @@ class Markowitz:
 
         for ind, variance in enumerate(all_variances):
             # Get optimal weights and associated return given a portfolio variance
+
             result = self.__optimal_one_period_weights(expected_return, sigma, variance)
 
             all_returns[ind] = result['excess_return']

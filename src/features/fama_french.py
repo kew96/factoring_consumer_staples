@@ -167,8 +167,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                     continue
 
                 # Iterate through each asset, individually
-                ticker_date_df = self.__raw_data[(self.__raw_data.tic == ticker) &
-                                                 (self.__raw_data.datadate < date)]
+                ticker_date_df = self.__raw_data[(self.__raw_data.tic == ticker) & (self.__raw_data.datadate < date)]
 
                 if len(ticker_date_df) < 2:
                     continue
@@ -218,14 +217,13 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                 r2.append(model.rsquared)
                 delta_diag.append(squared_error)
 
-            alpha = pd.Series(alphas, index=tickers).drop_duplicates().dropna()
-            delta = pd.DataFrame(np.diagflat(delta_diag), columns=tickers,
-                                 index=tickers).drop_duplicates().dropna()
+            alpha = pd.Series(alphas, index=tickers).dropna()
+            delta = pd.DataFrame(np.diagflat(delta_diag), columns=tickers, index=tickers).dropna()
             loadings = pd.DataFrame({'mkt_excess': beta_mkt_exc, 'smb': beta_smb, 'hml': beta_hml},
-                                    index=tickers).drop_duplicates().dropna()
-            p_values = pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml},
-                                    index=tickers).drop_duplicates().dropna()
-            expected_return = self.__expected_returns(date, loadings, alpha).drop_duplicates().dropna()
+                                    index=tickers).dropna()
+            p_values = pd.DataFrame({'mkt_excess': p_mx, 'smb': p_smb, 'hml': p_hml}, index=tickers).dropna()
+
+            expected_return = self.__expected_returns(date, loadings, alpha).dropna()
             covariance_matrix = self.__factor_covariance(date, loadings, delta)
 
             date_str = '.'.join(np.datetime_as_string(date).split('-')[:2]) + '.txt'
