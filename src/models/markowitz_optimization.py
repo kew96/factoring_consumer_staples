@@ -59,7 +59,7 @@ class Markowitz:
         # Aggregate constraints into one list
         constraints = long_short
         constraints.append(variance <= max_variance)
-        constraints.append(total_invested <= 1e-6)
+        constraints.append(total_invested <= 1e-6) # Instead of strict equality to zero, create a tight band
         constraints.append(total_invested >= -1e-6)
 
         portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
@@ -167,6 +167,13 @@ class ThreeFactorMarkowitz(Markowitz):
         else:
             return year, (quarter+1)*3
 
+    @staticmethod
+    def __last_period(year, quarter):
+        if quarter == 1:
+            return year-1, 4
+        else:
+            return year, quarter-1
+
     def __retrieve_universe(self, year, quarter, total_size=20):
         month = quarter * 3
         date_subset = pd.read_table(self.__FACTOR_DATA_PATH.joinpath('expected_returns', f'{year}.{month:02}.txt'))
@@ -180,19 +187,14 @@ class ThreeFactorMarkowitz(Markowitz):
         return sub_universe.set_index('tic')
 
     @staticmethod
-    def __last_period(year, quarter):
-        if quarter == 1:
-            return year-1, 4
-        else:
-            return year, quarter-1
-
-    def __historical_portfolio_return(self, sub_universe, weights):
+    def __historical_portfolio_return(sub_universe, weights):
         weighted_returns = sub_universe.merge(weights, left_on='tic', right_index=True)
         weighted_returns['wgt_return'] = weighted_returns.chng * weighted_returns.weight
         date_returns = weighted_returns.groupby('datadate').agg({'wgt_return': sum})
         return date_returns
 
-    def __calculate_sharpe(self, historical_returns):
+    @staticmethod
+    def __calculate_sharpe(historical_returns):
         expected_excess = historical_returns.wgt_return.mean()
         vol = historical_returns.wgt_return.std()
         return expected_excess / vol
