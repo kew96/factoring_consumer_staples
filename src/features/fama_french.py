@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from statsmodels.api import WLS
+from statsmodels.tools.tools import add_constant
 
 from src.models.markowitz_optimization import ThreeFactorMarkowitz
 
@@ -177,7 +178,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                 # Iterate through each asset, individually
                 ticker_date_df = self.__raw_data[(self.__raw_data.tic == ticker) & (self.__raw_data.datadate < date)]
 
-                if len(ticker_date_df) < 4:
+                if len(ticker_date_df) < 5:
                     continue
 
                 # Separate data into the dependent and independent variables and convert to NumPy arrays
@@ -189,7 +190,9 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                 weights = [val / denom for val in range(1, len(ticker_date_df) + 1)]
 
                 # Actual weighted least squares model
-                model = WLS(y, X, weights=weights).fit()
+                model = WLS(y, add_constant(X), weights=weights).fit()
+
+                alpha, model.params = model.params[0], model.params[1:]
 
                 # Calculate the predicted returns for each asset
                 predictions = list()
@@ -199,11 +202,6 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                         # Sum of the factor return * the factor loading
                         predicted += factor * beta
                     predictions.append(predicted)
-
-                # Calculate the alpha for each asset
-                alpha = 0
-                for actual_return, wgt, predicted_return in zip(y, weights, predictions):
-                    alpha += (actual_return - predicted_return) * wgt
 
                 # The error in each prediction compared to the actual excess return
                 errors = list()
