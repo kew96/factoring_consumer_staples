@@ -47,7 +47,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             The file path to a tab-separated txt file containing all data needed to generate expected returns,
             actual returns, dates, and factors. Must include columns "tic" (ticker), "datadate" (date of entry),
             "chng" (percent change in asset's price from previous period), "mkt_excess" (asset's excess return over
-            market), "Price_tb" (the risk-free rate), "ptb" (price-to-book ratio), and "mkvaltq" (market
+            market), "Price_tb" (the risk-free rate), "btm" (book-to-market ratio), and "mkvaltq" (market
             capitalization of asset).
             Default: a file named "three_factor_model.txt" in the directory "data/processed/".
         """
@@ -104,14 +104,14 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         hml = list()
         for date in self.__raw_data.datadate.unique():
             # Iterate through each available date
-            temp = self.__raw_data[self.__raw_data.datadate == date][['chng', 'ptb']]
+            temp = self.__raw_data[self.__raw_data.datadate == date][['chng', 'btm']]
 
-            ten = temp.ptb.quantile(0.1)
-            ninety = temp.ptb.quantile(0.9)
+            ten = temp.btm.quantile(0.1)
+            ninety = temp.btm.quantile(0.9)
 
             # Identifies the assets in these groups and calculate the average returns
-            value = temp[temp.ptb < ten]
-            growth = temp[temp.ptb > ninety]
+            growth = temp[temp.btm < ten]
+            value = temp[temp.btm > ninety]
             val_rets = value.chng.mean()
             growth_rets = growth.chng.mean()
 
