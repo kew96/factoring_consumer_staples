@@ -36,19 +36,26 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
     """
     __DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
-    def __init__(self, *, data=None):
+    def __init__(self, start_year=2005, start_quarter=1, *, data=None):
         """
         Initializes the ThreeFactorModel by calculating the factor loadings, alphas, deltas, p-values for factor
         loadings, covariance matrix and initializes inherited class.
 
         Parameters
         ----------
+        start_year: int
+            The first year to start generating data from.
+            Default: 2005
+        start_quarter: int
+            The first quarter within the start year to generate data from.
+            Default: 1
         data: str
             The file path to a tab-separated txt file containing all data needed to generate expected returns,
             actual returns, dates, and factors. Must include columns "tic" (ticker), "datadate" (date of entry),
             "chng" (percent change in asset's price from previous period), "mkt_excess" (asset's excess return over
             market), "Price_tb" (the risk-free rate), "btm" (book-to-market ratio), and "mkvaltq" (market
             capitalization of asset).
+            * Keyword argument only
             Default: a file named "three_factor_model.txt" in the directory "data/processed/".
         """
         if not data:
@@ -65,9 +72,9 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
             ans = input('Would you like to generate the required data? (y/n): ')
             if ans.lower() == 'y':
                 print('Generating data! (This may take a bit.)')
-                self._generate_distinct_factors()
+                self._generate_distinct_factors(start_year=start_year, start_quarter=start_quarter)
             else:
-                raise FileNotFoundError('Please add required data to data/factor_data/')
+                raise FileNotFoundError(f'Please add required data to {FACTOR_DATA_PATH}')
         ThreeFactorMarkowitz.__init__(self, self.__raw_data)
 
     @property
@@ -98,7 +105,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         SMB = pd.DataFrame({'datadate': self.__raw_data.datadate.unique(), 'smb': smb})
 
         # Modifies the base DataFrame
-        self.__raw_data = self.__raw_data.merge(SMB, how='left', on='datadate').drop_duplicates()
+        self.__raw_data = self.__raw_data.merge(SMB, how='left', on='datadate')
 
     def _generate_hml(self):
         hml = list()
@@ -123,24 +130,24 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         HML = pd.DataFrame({'datadate': self.__raw_data.datadate.unique(), 'hml': hml})
 
         # Modifies the base DataFrame
-        self.__raw_data = self.__raw_data.merge(HML, how='left', on='datadate').drop_duplicates()
+        self.__raw_data = self.__raw_data.merge(HML, how='left', on='datadate')
 
     @staticmethod
     def __check_dir(path):
         if not path.exists():
             path.mkdir()
 
-    def _generate_distinct_factors(self, start_year=2005):
+    def _generate_distinct_factors(self, start_year=2005, start_quarter=1):
 
-        MODEL_DATA = self.__DATA_PATH.joinpath('processed', 'factor_data')
-        FACTOR_LOADINGS = MODEL_DATA.joinpath('factor_loadings')
-        ALPHAS = MODEL_DATA.joinpath('alphas')
-        P_VALUES = MODEL_DATA.joinpath('p_values')
-        DELTAS = MODEL_DATA.joinpath('deltas')
-        EXPECTED_RETURN = MODEL_DATA.joinpath('expected_returns')
-        COVARIANCE = MODEL_DATA.joinpath('covariance_matrices')
+        FACTOR_DATA_PATH = self.__DATA_PATH.joinpath('processed', 'factor_data')
+        FACTOR_LOADINGS = FACTOR_DATA_PATH.joinpath('factor_loadings')
+        ALPHAS = FACTOR_DATA_PATH.joinpath('alphas')
+        P_VALUES = FACTOR_DATA_PATH.joinpath('p_values')
+        DELTAS = FACTOR_DATA_PATH.joinpath('deltas')
+        EXPECTED_RETURN = FACTOR_DATA_PATH.joinpath('expected_returns')
+        COVARIANCE = FACTOR_DATA_PATH.joinpath('covariance_matrices')
 
-        self.__check_dir(MODEL_DATA)
+        self.__check_dir(FACTOR_DATA_PATH)
         self.__check_dir(FACTOR_LOADINGS)
         self.__check_dir(ALPHAS)
         self.__check_dir(P_VALUES)
@@ -149,7 +156,8 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         self.__check_dir(COVARIANCE)
 
 
-        for date in self.__raw_data.datadate[self.__raw_data.datadate.dt.year >= start_year].unique():
+        for date in self.__raw_data.datadate[
+            self.__raw_data.datadate >= f'{start_year}-{start_quarter*3:02}-01'].unique():
 
             tickers = list()
             alphas = list()
@@ -169,7 +177,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                 # Iterate through each asset, individually
                 ticker_date_df = self.__raw_data[(self.__raw_data.tic == ticker) & (self.__raw_data.datadate < date)]
 
-                if len(ticker_date_df) < 2:
+                if len(ticker_date_df) < 4:
                     continue
 
                 # Separate data into the dependent and independent variables and convert to NumPy arrays
@@ -187,20 +195,20 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
                 predictions = list()
                 for row in X:
                     predicted = 0
-                    for x_val, param_val in zip(row, model.params):
+                    for factor, beta in zip(row, model.params):
                         # Sum of the factor return * the factor loading
-                        predicted += x_val * param_val
+                        predicted += factor * beta
                     predictions.append(predicted)
 
                 # Calculate the alpha for each asset
                 alpha = 0
-                for y_val, w, pred in zip(y, weights, predictions):
-                    alpha += (y_val - pred) * w
+                for actual_return, wgt, predicted_return in zip(y, weights, predictions):
+                    alpha += (actual_return - predicted_return) * wgt
 
                 # The error in each prediction compared to the actual excess return
                 errors = list()
-                for pred, y_val in zip(predictions, y):
-                    error = y_val - alpha - pred
+                for predicted_return, actual_return in zip(predictions, y):
+                    error = actual_return - alpha - predicted_return
                     errors.append(error)
 
                 # Calculate the squared error
@@ -239,7 +247,7 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
     def __expected_returns(self, date, loadings, alphas):
 
         # Combines the factor loadings, expected factor returns, and alphas
-        subset_factor_returns = self.__raw_data[self.__raw_data.datadate==date][['tic', 'mkt_excess', 'smb', 'hml']]
+        subset_factor_returns = self.__raw_data[self.__raw_data.datadate == date][['tic', 'mkt_excess', 'smb', 'hml']]
         factor_returns_loadings = loadings.reset_index().merge(subset_factor_returns, left_on='index',
                                                         right_on='tic', how='left', suffixes=('_loading', ''))
 
@@ -264,22 +272,16 @@ class ThreeFactorModel(ThreeFactorMarkowitz):
         return expected_return
 
     def __factor_covariance(self, date, loadings, deltas):
-        date_subset = self.__raw_data[self.__raw_data.datadate == date]
-        f = date_subset[date_subset.datadate.isin(date_subset.datadate.unique())][
-            ['datadate', 'mkt_excess', 'smb', 'hml']]
+        date_subset = self.__raw_data[self.__raw_data.datadate < date]
+        f = date_subset[['datadate', 'mkt_excess', 'smb', 'hml']].drop_duplicates().sort_values('datadate').copy()
         denom = sum(range(len(f)))
-        weights = [val / denom for val in range(1, len(f) + 1)]
-        F = pd.DataFrame(0, columns=['mkt_excess', 'smb', 'hml'], index=['mkt_excess', 'smb', 'hml'])
-        for w1, row1 in zip(weights, f.values):
-            weighted_factors = np.zeros(3)
-            for w2, row2 in zip(weights, f.values):
-                weighted_factors = weighted_factors + np.multiply(w2, row2[1:])
-
-            diff = row1[1:] - weighted_factors
-
-            cov = np.dot(diff.reshape((3,1)), diff.reshape((1,3)))
-            F += w1 * cov
-
+        weights = np.array([val / denom for val in range(1, len(f) + 1)])
+        F = np.zeros((3, 3), dtype=float)
+        weighted_factor_sum = np.sum(f.values[:, 1:] * weights.reshape((-1, 1)), axis=0)
+        for wgt, factors in zip(weights, f.values[:, 1:]):
+            factor_diff = factors - weighted_factor_sum
+            weighted_date = wgt * np.dot(factor_diff.reshape((-1, 1)), factor_diff.reshape((1, -1)))
+            F = F + weighted_date
         V = np.dot(np.dot(loadings.values, F), loadings.values.T) + deltas.values
         return pd.DataFrame(V, columns=loadings.index, index=loadings.index)
 
@@ -288,4 +290,4 @@ if __name__ == '__main__':
     pd.options.display.max_columns = None
     pd.options.display.max_rows = None
     tfm = ThreeFactorModel()
-    print(tfm.max_sharpe_portfolios(start_year=2005, end_year=2010))
+    print(tfm.data.head())
