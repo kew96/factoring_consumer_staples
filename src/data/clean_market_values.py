@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
 
 
-market_values = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
+market_values = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_monthly.txt'),
                               parse_dates=['date'], usecols=['TICKER', 'date', 'COMNAM', 'PRC', 'SHROUT'])
 
 market_values.columns = ['datadate', 'tic', 'conm', 'prccm', 'cshoc']

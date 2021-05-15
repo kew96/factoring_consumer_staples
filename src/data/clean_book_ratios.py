@@ -18,7 +18,7 @@ book_ratios = pd.read_table(DATA_PATH.joinpath('raw', 'prices_assets_liabilities
                             parse_dates=['datadate'])
 book_ratios['book_value'] = (book_ratios.atq - book_ratios.ltq) * 1_000_000
 
-shares = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_daily.txt'),
+shares = pd.read_table(DATA_PATH.joinpath('raw', 'prices_shares_outstanding_monthly.txt'),
                        usecols=['date', 'TICKER', 'SHROUT'], parse_dates=['date'])
 shares.columns = ['datadate', 'tic', 'cshoc']
 shares = shares.dropna(subset=['tic'])
