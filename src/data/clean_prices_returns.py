@@ -1,15 +1,7 @@
 from pathlib import Path
-from datetime import date
-from collections import Counter
-from dateutil.relativedelta import relativedelta
 
 import pandas as pd
 import numpy as np
-
-from calendar import monthrange
-
-import warnings
-warnings.filterwarnings("ignore")
 
 
 DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data')
