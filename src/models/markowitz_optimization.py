@@ -64,7 +64,7 @@ class Markowitz:
 
         portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
 
-        portfolio_opt.solve(verbose=False)
+        portfolio_opt.solve(verbose=False, solver='SCS')
 
         return {'excess_return': total_return.value[0], 'weights': weights.value}
 
