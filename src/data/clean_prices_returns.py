@@ -30,7 +30,10 @@ for entry in prices.chng:
     except ValueError:
         nan_chng.append(np.nan)
 
+# Convert monthly to quarterly returns
 prices.chng = nan_chng
+prices.chng = prices.chng + 1
+prices.chng = prices.chng.rolling(3).agg(np.product) - 1
 
 # Sets date as the index
 
@@ -40,9 +43,11 @@ consumer_staples = consumer_staples.sort_values(['Date']).reset_index(drop=True)
 # Retrieves missing number of missing data points (outside of beginning and end) and prints the count, ticker,
 # and company name
 
-# Percent change for consumer staples index
+# Percent change for consumer staples index and convert to quarterly
 
 consumer_staples['chng'] = consumer_staples['Change %'].apply(lambda x: float(x[:-1])/100)
+consumer_staples.chng = consumer_staples.chng + 1
+consumer_staples.chng = consumer_staples.chng.rolling(3).apply(np.product) - 1
 
 # Market (consumer staples index) excess return is the percent change - the return on the t-bill
 
