@@ -66,7 +66,10 @@ class Markowitz:
 
         portfolio_opt.solve(verbose=False, solver='SCS')
 
-        return {'excess_return': total_return.value[0], 'weights': weights.value}
+        if total_return.value:
+            return {'excess_return': total_return.value[0], 'weights': weights.value}
+        else:
+            return None
 
     def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3,
                               exposure=0):
@@ -275,6 +278,8 @@ class ThreeFactorMarkowitz(Markowitz):
                 # Calculate the optimal weights given a universe
                 wgts = self.max_one_period_sharpe(universe, sigma, num_points, exposure=exposure,
                                                   min_variance=min_variance, max_variance=max_variance)
+                if not wgts:
+                    continue
 
                 # Simply multiply the expected return for each asset by the assigned weight and sum over all assets
                 expected_return = sum(universe.ret.values * wgts.weight.values)
