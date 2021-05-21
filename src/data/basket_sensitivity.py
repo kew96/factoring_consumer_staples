@@ -2,7 +2,7 @@ from pathlib import Path
 
 from src.features import fama_french
 
-DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data', 'processed', 'sensitivity_analysis', 'universe_size')
+DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data', 'processed', 'sensitivity_analysis', 'basket_size')
 
 tfm = fama_french.ThreeFactorModel()
 
