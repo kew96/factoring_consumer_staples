@@ -116,8 +116,8 @@ class Markowitz:
 
             result = self.__optimal_one_period_weights(expected_return, sigma, variance, exposure)
             if not result:
-                all_returns[ind] = np.nan
-                all_weights[ind] = np.nan
+                all_returns[ind] = -100
+                all_weights[ind] = 0
                 continue
 
             all_returns[ind] = result['excess_return']
