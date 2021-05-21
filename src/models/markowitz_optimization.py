@@ -28,7 +28,7 @@ class Markowitz:
         """
 
     @staticmethod
-    def __optimal_one_period_weights(expected_return, sigma, max_variance):
+    def __optimal_one_period_weights(expected_return, sigma, max_variance, exposure=0):
 
         assert len(expected_return) % 2 == 0, 'There must be an even number of assets.'
 
@@ -59,8 +59,8 @@ class Markowitz:
         # Aggregate constraints into one list
         constraints = long_short
         constraints.append(variance <= max_variance)
-        constraints.append(total_invested <= 1e-6) # Instead of strict equality to zero, create a tight band
-        constraints.append(total_invested >= -1e-6)
+        constraints.append(total_invested <= exposure+1e-6) # Instead of strict equality to zero, create a tight band
+        constraints.append(total_invested >= exposure-1e-6)
 
         portfolio_opt = cp.Problem(cp.Maximize(total_return), constraints=constraints)
 
@@ -68,7 +68,8 @@ class Markowitz:
 
         return {'excess_return': total_return.value[0], 'weights': weights.value}
 
-    def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3):
+    def max_one_period_sharpe(self, expected_return, sigma, num_points=300, *, min_variance=0, max_variance=3,
+                              exposure=0):
         """
         Finds the weights of the portfolio that correspond to the maximum Sharpe ratio
 
@@ -110,7 +111,7 @@ class Markowitz:
         for ind, variance in enumerate(all_variances):
             # Get optimal weights and associated return given a portfolio variance
 
-            result = self.__optimal_one_period_weights(expected_return, sigma, variance)
+            result = self.__optimal_one_period_weights(expected_return, sigma, variance, exposure)
 
             all_returns[ind] = result['excess_return']
             all_weights[ind] = result['weights']
@@ -201,7 +202,7 @@ class ThreeFactorMarkowitz(Markowitz):
 
 
     def max_sharpe_portfolios(self, start_year=2005, end_year=2020, num_points=300, *, min_variance=0,
-                              max_variance=3, universe_size=20, return_sharpe=False, return_weights=False):
+                              max_variance=3, universe_size=20, exposure=0, return_sharpe=False, return_weights=False):
         """
         Calculates the realized return for each quarter from start_year to end_year based off expected asset returns
         from previous quarter. Utilizes methods from the class Markowitz to find the optimal weights for the
@@ -272,7 +273,7 @@ class ThreeFactorMarkowitz(Markowitz):
                 actual_returns = actual_returns.drop_duplicates(subset=['tic']).set_index('tic')
 
                 # Calculate the optimal weights given a universe
-                wgts = self.max_one_period_sharpe(universe, sigma, num_points,
+                wgts = self.max_one_period_sharpe(universe, sigma, num_points, exposure=exposure,
                                                   min_variance=min_variance, max_variance=max_variance)
 
                 # Simply multiply the expected return for each asset by the assigned weight and sum over all assets
