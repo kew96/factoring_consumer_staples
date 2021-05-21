@@ -115,6 +115,10 @@ class Markowitz:
             # Get optimal weights and associated return given a portfolio variance
 
             result = self.__optimal_one_period_weights(expected_return, sigma, variance, exposure)
+            if not result:
+                all_returns[ind] = np.nan
+                all_weights[ind] = np.nan
+                continue
 
             all_returns[ind] = result['excess_return']
             all_weights[ind] = result['weights']
@@ -278,8 +282,6 @@ class ThreeFactorMarkowitz(Markowitz):
                 # Calculate the optimal weights given a universe
                 wgts = self.max_one_period_sharpe(universe, sigma, num_points, exposure=exposure,
                                                   min_variance=min_variance, max_variance=max_variance)
-                if not wgts:
-                    continue
 
                 # Simply multiply the expected return for each asset by the assigned weight and sum over all assets
                 expected_return = sum(universe.ret.values * wgts.weight.values)
