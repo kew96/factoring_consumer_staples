@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 plt.style.use('fivethirtyeight')
 
 DATA_PATH = Path.cwd().parent.parent.joinpath('data', 'processed')
-
+FIGURE_PATH = Path(__file__).parent.parent.parent.joinpath('reports', 'figures')
 
 weights_data = pd.read_table(DATA_PATH.joinpath('visualization', 'weights_data.txt'), parse_dates={'date': ['year', 'month']})
 weights_data = weights_data.fillna(0)
@@ -29,7 +29,7 @@ plt.ylabel('Alpha')
 plt.xlabel('Date')
 plt.xticks(weights_data.date[1::2], labels=weights_data.date[1::2].dt.strftime('%y-%b'), rotation=-80)
 
-plt.savefig(DATA_PATH.joinpath('visualization', 'portfolio_alpha.png'),
+plt.savefig(FIGURE_PATH.joinpath('visualization', 'portfolio_alpha.png'),
             format='png',
             transparent=False,
             bbox_inches='tight',
