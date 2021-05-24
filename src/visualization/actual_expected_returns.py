@@ -10,7 +10,7 @@ DATA_PATH = Path(__file__).parent.parent.parent.joinpath('data', 'processed', 'v
 
 returns_data = pd.read_table(DATA_PATH.joinpath('performance_data.txt'), parse_dates={'date': ['year', 'month']})
 
-fig = plt.figure(figsize=(15,10))
+fig = plt.figure(figsize=(15, 8))
 plt.plot(returns_data.date, returns_data.actual_ret, label='Realized Return')
 plt.plot(returns_data.date, returns_data.expected_ret, label='Expected Return')
 plt.title('Actual vs. Expected Excess Return of Fama French 3-Factor Model')

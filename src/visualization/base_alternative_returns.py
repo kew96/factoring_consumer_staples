@@ -12,7 +12,7 @@ returns_data = pd.read_table(DATA_PATH.joinpath('performance_data.txt'), parse_d
 mod_returns_data = pd.read_table(DATA_PATH.joinpath('modified_alpha_performance_data.txt'),
                                  parse_dates={'date': ['year', 'month']})
 
-fig = plt.figure(figsize=(15,10))
+fig = plt.figure(figsize=(15, 8))
 plt.plot(returns_data.date, returns_data.actual_ret, label='Base')
 plt.plot(mod_returns_data.date, mod_returns_data.actual_ret, label='Alternative')
 plt.title('Base vs. Alternative Model Excess Returns')
