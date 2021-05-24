@@ -22,6 +22,7 @@ Project Organization
     │   ├── interim        <- Intermediate data that has been transformed.
     │   ├── processed      <- The final data sets for modeling.
     │   └── raw            <- The original, immutable data dump.
+    │        └── raw.zip <- Contains all raw data for project.
     │
     ├── notebooks          <- Jupyter notebooks
     │
