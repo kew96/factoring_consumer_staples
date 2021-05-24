@@ -14,7 +14,7 @@ mod_returns_data = pd.read_table(DATA_PATH.joinpath('modified_alpha_performance_
 
 fig = plt.figure(figsize=(15,10))
 plt.plot(returns_data.date, returns_data.actual_ret, label='Base')
-plt.plot(mod_returns_data.date, mod_returns_data.expected_ret, label='Alternative')
+plt.plot(mod_returns_data.date, mod_returns_data.actual_ret, label='Alternative')
 plt.title('Base vs. Alternative Model Excess Returns')
 plt.legend()
 plt.ylabel('Return')
