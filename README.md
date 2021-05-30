@@ -10,6 +10,9 @@ makes it difficult to add to any portfolio. Sensitivity analysis did provide som
 model but nothing at any significance value. Achieving a positive excess return gives us hope for this framework but
 necessitates future research into new factors and different techniques for calculating factor loadings.
 
+Please feel free to review our [paper](reports/Factoring_Consumer_Staples.pdf) covering this in more detail along 
+with our code and reach out to us with any thoughts or questions.
+
 - Kyle Walsh: [kew96@cornell.edu](mailto:kew96@cornell.edu?Subject=Factoring%20Consumer%20Staples%20Project)
 - Siddharth Kantamneni: [skk82@cornell.edu](mailto:skk82@cornell.edu?Subject=Factoring%20Consumer%20Staples%20Project)
 
