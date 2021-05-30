@@ -50,6 +50,6 @@ Project Organization
     │   │   └── markowitz_optimization.py <- The base classes for Markowitz optimization
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    └──       └── gen_visualizations <- Creates all visualizations used in report
+    └──       └── gen_visualizations.sh <- Creates all visualizations used in report
 
 --------
